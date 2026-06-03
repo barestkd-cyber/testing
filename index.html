@@ -838,6 +838,14 @@ document.addEventListener('keydown', e => {
 
 // Auto-login if portal session exists
 window.addEventListener('load', async () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const tokenFromPortal = urlParams.get('token');
+  const refreshFromPortal = urlParams.get('refresh');
+  if(tokenFromPortal && refreshFromPortal){
+    await sb.auth.setSession({ access_token: tokenFromPortal, refresh_token: refreshFromPortal });
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
   const { data } = await sb.auth.getSession();
   if(data?.session?.user){
     const { data: profile } = await sb.from('profiles').select('role').eq('id', data.session.user.id).single();
