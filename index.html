@@ -351,6 +351,7 @@ html{overflow-x:hidden;}
 .boards-checks label{display:inline-flex;align-items:center;gap:4px;color:var(--gray-400);cursor:pointer;user-select:none;}
 .boards-checks input[type=checkbox]{width:13px;height:13px;accent-color:var(--gold);flex-shrink:0;}
 .boards-meta{font-size:0.68rem;color:var(--gray-500);margin-top:2px;}
+#pw-reset-modal.active { display:flex !important; }
 </style>
 </head>
 <body>
@@ -372,6 +373,17 @@ html{overflow-x:hidden;}
   </div>
 </div>
 
+<div id="pw-reset-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:28px;width:100%;max-width:340px;display:flex;flex-direction:column;gap:14px;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#c9920a;">Reset Password</div>
+    <div style="font-size:0.8rem;color:#888;line-height:1.5;">Enter your email address and we'll send you a reset link.</div>
+    <input type="email" id="pw-reset-email" placeholder="your@email.com" style="width:100%;background:#111;border:1px solid #333;color:white;padding:10px 12px;border-radius:6px;font-size:0.9rem;outline:none;box-sizing:border-box;">
+    <div id="pw-reset-err" style="color:#c8102e;font-size:0.75rem;display:none;"></div>
+    <div id="pw-reset-success" style="color:#4caf50;font-size:0.8rem;display:none;">Reset email sent! Check your inbox.</div>
+    <button onclick="submitPasswordReset()" style="width:100%;padding:11px;background:#c9920a;border:none;border-radius:6px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:3px;cursor:pointer;color:#fff;">Send Reset Link</button>
+    <button onclick="document.getElementById('pw-reset-modal').classList.remove('active')" style="width:100%;padding:10px;background:none;border:1px solid #333;border-radius:6px;color:#888;font-family:'Barlow',sans-serif;font-size:0.85rem;cursor:pointer;">Cancel</button>
+  </div>
+</div>
 <div id="new-password-modal" style="display:none;position:fixed;inset:0;background:#0d0d0d;z-index:1001;align-items:center;justify-content:center;">
   <div style="background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:28px;width:100%;max-width:340px;display:flex;flex-direction:column;gap:14px;">
     <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#c9920a;">Set New Password</div>
@@ -818,14 +830,23 @@ let currentHistoryId = null;
 let currentTestingNames = new Set(); // names on current testing CSV
 
 // ── AUTH ──
-async function doPasswordReset(){
-  const email = document.getElementById('auth-email').value.trim();
-  if(!email){ alert('Enter your email address first, then click Forgot password.'); return; }
-  const { error } = await sb.auth.resetPasswordForEmail(email, {
-    redirectTo: 'https://testing.barestkd.fit'
-  });
-  if(error){ alert('Error sending reset email. Please try again.'); return; }
-  alert('Password reset email sent! Check your inbox.');
+function doPasswordReset(){
+  document.getElementById('pw-reset-email').value = '';
+  document.getElementById('pw-reset-err').style.display = 'none';
+  document.getElementById('pw-reset-success').style.display = 'none';
+  document.getElementById('pw-reset-modal').classList.add('active');
+}
+
+async function submitPasswordReset(){
+  const email = document.getElementById('pw-reset-email').value.trim();
+  const err = document.getElementById('pw-reset-err');
+  const success = document.getElementById('pw-reset-success');
+  err.style.display = 'none'; success.style.display = 'none';
+  if(!email){ err.textContent = 'Please enter a valid email address.'; err.style.display = 'block'; return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: 'https://testing.barestkd.fit' });
+  if(error){ err.textContent = 'Error sending reset email. Please try again.'; err.style.display = 'block'; return; }
+  success.style.display = 'block';
+  setTimeout(() => document.getElementById('pw-reset-modal').classList.remove('active'), 3000);
 }
 
 async function doLogin(){
