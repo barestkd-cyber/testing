@@ -6,6 +6,7 @@
 <title>BaresTKD | Testing Sheet Generator</title>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;600&family=UnifrakturMaguntia&family=Dancing+Script:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://portal.barestkd.fit/shared/auth.js?v=1"></script>
 <style>
 :root {
   --black:#0a0a0a; --red:#c0152a; --red-dark:#8f0f1f;
@@ -806,17 +807,10 @@ const IMAS_LOGO  = "https://barestkd-cyber.github.io/curriculum/IMAS-Patch.png";
 const DEFAULT_PW = "barestkd2024";
 
 // ── SUPABASE ──
-const SUPABASE_URL = "https://akdncbzxiwvihfcyijvm.supabase.co";
-const SUPABASE_KEY = "sb_publishable_uSGIk4_Tt1_BOmPBoC_U5A_Kp2032f5";
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: {
-    storageKey: 'barestkd-auth',
-    storage: window.localStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true
-  }
-});
+// Auth + the Supabase client come from the shared module (window.BTKD),
+// loaded via shared/auth.js. Reuse its client so existing sb.from(...) calls
+// keep working through the one canonical, shared session.
+const sb = BTKD.sb;
 
 // In-memory cache so the app stays fast
 let _rosterCache = null;
@@ -843,8 +837,8 @@ async function submitPasswordReset(){
   const success = document.getElementById('pw-reset-success');
   err.style.display = 'none'; success.style.display = 'none';
   if(!email){ err.textContent = 'Please enter a valid email address.'; err.style.display = 'block'; return; }
-  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: 'https://testing.barestkd.fit' });
-  if(error){ err.textContent = 'Error sending reset email. Please try again.'; err.style.display = 'block'; return; }
+  const { error } = await BTKD.sendPasswordReset(email, 'https://testing.barestkd.fit');
+  if(error){ err.textContent = error; err.style.display = 'block'; return; }
   success.style.display = 'block';
   setTimeout(() => document.getElementById('pw-reset-modal').classList.remove('active'), 3000);
 }
@@ -854,15 +848,16 @@ async function doLogin(){
   const pw = document.getElementById('auth-password').value;
   const err = document.getElementById('login-error');
   err.style.display = 'none';
-  const {data, error} = await sb.auth.signInWithPassword({email, password: pw});
+  const { user, error } = await BTKD.signIn({ email, password: pw });
   if(error){ err.style.display='block'; return; }
-  const {data:profile} = await sb.from('profiles').select('role').eq('id', data.user.id).single();
+  const {data:profile} = await sb.from('profiles').select('role').eq('id', user.id).single();
   if(profile?.role === 'admin' || profile?.role === 'instructor'){
+    currentUser = user;
     await enterApp();
   } else {
     err.textContent = 'You do not have access to this app.';
     err.style.display = 'block';
-    await sb.auth.signOut();
+    await BTKD.signOut();
   }
 }
 
@@ -880,29 +875,20 @@ document.addEventListener('keydown', e => {
 });
 
 async function initAuth(){
-  const hash = window.location.hash;
-  if(hash && hash.includes('type=recovery')){
-    const params = new URLSearchParams(hash.replace('#',''));
-    const accessToken = params.get('access_token');
-    const refreshToken = params.get('refresh_token');
-    if(accessToken && refreshToken){
-      await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-      window.history.replaceState({}, document.title, window.location.pathname);
-      document.getElementById('loading-screen').style.display = 'none';
-      document.getElementById('new-password-modal').style.display = 'flex';
-      return;
-    }
-  }
-  const urlParams = new URLSearchParams(window.location.search);
-  const tokenFromPortal = urlParams.get('token');
-  const refreshFromPortal = urlParams.get('refresh');
-  if(tokenFromPortal && refreshFromPortal){
-    await sb.auth.setSession({ access_token: tokenFromPortal, refresh_token: refreshFromPortal });
-    window.history.replaceState({}, document.title, window.location.pathname);
-  }
-  const { data } = await sb.auth.getSession();
-  if(data?.session?.user){
-    currentUser = data.session.user;
+  // Password recovery link? The shared module establishes the session and we
+  // surface the new-password modal; stop normal init when it takes over.
+  const recovering = await BTKD.initResetHandler({ onRecovery: () => {
+    document.getElementById('loading-screen').style.display = 'none';
+    document.getElementById('new-password-modal').style.display = 'flex';
+  }});
+  if(recovering) return;
+
+  // Launched from the portal with a session in the URL? Adopt it.
+  await BTKD.pickupSessionFromURL();
+
+  const session = await BTKD.getSession();
+  if(session?.user){
+    currentUser = session.user;
     await enterApp();
   } else {
     document.getElementById('loading-screen').style.display = 'none';
@@ -917,20 +903,18 @@ async function submitNewPassword(){
   err.style.display = 'none';
   if(!pw || pw.length < 6){ err.textContent = 'Password must be at least 6 characters.'; err.style.display = 'block'; return; }
   if(pw !== confirm){ err.textContent = 'Passwords do not match.'; err.style.display = 'block'; return; }
-  const { error } = await sb.auth.updateUser({ password: pw });
-  if(error){ err.textContent = 'Error updating password. Please try again.'; err.style.display = 'block'; return; }
+  const { user, error } = await BTKD.completePasswordReset(pw);
+  if(error){ err.textContent = error; err.style.display = 'block'; return; }
   alert('Password updated! You are now signed in.');
   document.getElementById('new-password-modal').style.display = 'none';
-  const { data } = await sb.auth.getSession();
-  currentUser = data.session.user;
+  currentUser = user;
   await enterApp();
 }
 
 window.addEventListener('load', () => initAuth());
-function doLogout(){
-  sb.auth.signOut();
-  document.getElementById('app').style.display='none';
-  document.getElementById('login-screen').style.display='flex';
+async function doLogout(){
+  await BTKD.signOut();
+  location.reload();
 }
 function openChangePw(){ document.getElementById('pw-modal').classList.add('open'); }
 function closePwModal(){
