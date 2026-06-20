@@ -868,15 +868,18 @@ async function enterApp(){
   await getRosterAsync();
   await getHistoryAsync();
   renderRoster(); renderHistory();
-  const _restored = restoreDraft();
+  const _restored = await restoreDraft();
   startDraftAutosave();
-  if(_restored) showCSVAlert('Restored your in-progress testing session (saved on this device). Upload a CSV to start a new one.', 'alert-info');
+  if(_restored) showCSVAlert('Restored your in-progress testing session. Upload a CSV to start a new one.', 'alert-info');
 }
 
 // ── WORKING-SESSION PERSISTENCE ───────────────────────────────
 // Keeps the uploaded groups/testers + sparring/forms state alive across a
-// refresh by autosaving to this device's localStorage. (Finalized sessions
-// still go to Supabase via saveToHistory; this is just the working draft.)
+// refresh and ACROSS DEVICES via a single shared Supabase row (testing_draft,
+// id='current'), with localStorage as an instant/offline fallback. Degrades
+// to localStorage-only if the testing_draft table doesn't exist yet.
+// (Finalized sessions still go to Supabase via saveToHistory; this is the
+// in-progress working draft.)
 const TESTING_DRAFT_KEY = 'btkd_testing_draft_v1';
 let _draftAutosave = null;
 
@@ -897,31 +900,65 @@ function _serializeGroupStates(obj){
   return out;
 }
 
+let _lastSavedJSON = ''; // skip redundant writes
+
+function _buildDraft(){
+  return {
+    v: 1,
+    groups: groups,
+    sp: _serializeGroupStates(spGroupState),
+    ff: _serializeGroupStates(ffGroupState),
+    title: document.getElementById('test-month')?.value || '',
+    testDate: document.getElementById('test-date')?.value || '',
+    savedAt: Date.now()
+  };
+}
+
+// Save the working draft to BOTH localStorage (instant, offline) and the
+// shared Supabase row (cross-device). Cloud write is fire-and-forget and
+// degrades silently if the testing_draft table doesn't exist yet.
 function saveDraft(){
   try{
     if(!Array.isArray(groups) || !groups.length) return; // nothing to save yet
-    localStorage.setItem(TESTING_DRAFT_KEY, JSON.stringify({
-      v: 1,
-      groups: groups,
-      sp: _serializeGroupStates(spGroupState),
-      ff: _serializeGroupStates(ffGroupState),
-      title: document.getElementById('test-month')?.value || '',
-      testDate: document.getElementById('test-date')?.value || '',
-      savedAt: Date.now()
-    }));
+    const d = _buildDraft();
+    const cmp = JSON.stringify({ ...d, savedAt: 0 }); // ignore timestamp when diffing
+    if(cmp === _lastSavedJSON) return;                 // nothing changed
+    _lastSavedJSON = cmp;
+    try{ localStorage.setItem(TESTING_DRAFT_KEY, JSON.stringify(d)); }catch(e){}
+    _cloudSaveDraft(d);
   }catch(e){ console.warn('saveDraft failed', e); }
 }
 
-function clearDraft(){ try{ localStorage.removeItem(TESTING_DRAFT_KEY); }catch(e){} }
-
-function restoreDraft(){
-  let d;
+async function _cloudSaveDraft(d){
   try{
-    const raw = localStorage.getItem(TESTING_DRAFT_KEY);
-    if(!raw) return false;
-    d = JSON.parse(raw);
-  }catch(e){ return false; }
-  if(!d || !Array.isArray(d.groups) || !d.groups.length) return false;
+    await sb.from('testing_draft').upsert(
+      { id:'current', data:d, updated_at:new Date().toISOString() },
+      { onConflict:'id' }
+    );
+  }catch(e){ /* table may not exist yet — localStorage already has it */ }
+}
+
+function clearDraft(){
+  _lastSavedJSON = '';
+  try{ localStorage.removeItem(TESTING_DRAFT_KEY); }catch(e){}
+  (async()=>{ try{ await sb.from('testing_draft').delete().eq('id','current'); }catch(e){} })();
+}
+
+// Prefer the shared cloud draft (so a second device picks up the latest);
+// fall back to this device's localStorage if the cloud is empty/unavailable.
+async function restoreDraft(){
+  let d = null;
+  try{
+    const { data, error } = await sb.from('testing_draft').select('data').eq('id','current').maybeSingle();
+    if(!error && data && data.data && Array.isArray(data.data.groups) && data.data.groups.length) d = data.data;
+  }catch(e){ /* table missing / offline — fall through to localStorage */ }
+  if(!d){
+    try{
+      const raw = localStorage.getItem(TESTING_DRAFT_KEY);
+      if(raw){ const p = JSON.parse(raw); if(p && Array.isArray(p.groups) && p.groups.length) d = p; }
+    }catch(e){}
+  }
+  if(!d) return false;
   groups = d.groups;
   spGroupState = d.sp || {};
   ffGroupState = d.ff || {};
@@ -929,6 +966,7 @@ function restoreDraft(){
   groups.forEach(g=>(g.students||[]).forEach(s=>{ if(s.name) currentTestingNames.add((s.name||'').trim().toUpperCase()); }));
   const mEl = document.getElementById('test-month'); if(mEl && d.title) mEl.value = d.title;
   const dEl = document.getElementById('test-date'); if(dEl && d.testDate) dEl.value = d.testDate;
+  _lastSavedJSON = JSON.stringify({ ...d, savedAt: 0 }); // don't immediately re-save what we just loaded
   renderGroups();
   const gs = document.getElementById('groups-section'); if(gs) gs.style.display = 'block';
   const ps = document.getElementById('preview-section'); if(ps) ps.style.display = 'none';
