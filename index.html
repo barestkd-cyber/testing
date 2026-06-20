@@ -868,6 +868,77 @@ async function enterApp(){
   await getRosterAsync();
   await getHistoryAsync();
   renderRoster(); renderHistory();
+  const _restored = restoreDraft();
+  startDraftAutosave();
+  if(_restored) showCSVAlert('Restored your in-progress testing session (saved on this device). Upload a CSV to start a new one.', 'alert-info');
+}
+
+// ── WORKING-SESSION PERSISTENCE ───────────────────────────────
+// Keeps the uploaded groups/testers + sparring/forms state alive across a
+// refresh by autosaving to this device's localStorage. (Finalized sessions
+// still go to Supabase via saveToHistory; this is just the working draft.)
+const TESTING_DRAFT_KEY = 'btkd_testing_draft_v1';
+let _draftAutosave = null;
+
+// Copy a {gid: state} map, dropping fields that can't survive JSON (the
+// `selection` Set and the mid-edit backup); spEnsureState/ffEnsureState
+// recreate those on demand.
+function _serializeGroupStates(obj){
+  const out = {};
+  if(obj) Object.keys(obj).forEach(k=>{
+    const o = obj[k] || {};
+    const c = {};
+    Object.keys(o).forEach(f=>{
+      if(f==='selection' || f==='editingRoundBackup') return;
+      c[f] = o[f];
+    });
+    out[k] = c;
+  });
+  return out;
+}
+
+function saveDraft(){
+  try{
+    if(!Array.isArray(groups) || !groups.length) return; // nothing to save yet
+    localStorage.setItem(TESTING_DRAFT_KEY, JSON.stringify({
+      v: 1,
+      groups: groups,
+      sp: _serializeGroupStates(spGroupState),
+      ff: _serializeGroupStates(ffGroupState),
+      title: document.getElementById('test-month')?.value || '',
+      testDate: document.getElementById('test-date')?.value || '',
+      savedAt: Date.now()
+    }));
+  }catch(e){ console.warn('saveDraft failed', e); }
+}
+
+function clearDraft(){ try{ localStorage.removeItem(TESTING_DRAFT_KEY); }catch(e){} }
+
+function restoreDraft(){
+  let d;
+  try{
+    const raw = localStorage.getItem(TESTING_DRAFT_KEY);
+    if(!raw) return false;
+    d = JSON.parse(raw);
+  }catch(e){ return false; }
+  if(!d || !Array.isArray(d.groups) || !d.groups.length) return false;
+  groups = d.groups;
+  spGroupState = d.sp || {};
+  ffGroupState = d.ff || {};
+  currentTestingNames = new Set();
+  groups.forEach(g=>(g.students||[]).forEach(s=>{ if(s.name) currentTestingNames.add((s.name||'').trim().toUpperCase()); }));
+  const mEl = document.getElementById('test-month'); if(mEl && d.title) mEl.value = d.title;
+  const dEl = document.getElementById('test-date'); if(dEl && d.testDate) dEl.value = d.testDate;
+  renderGroups();
+  const gs = document.getElementById('groups-section'); if(gs) gs.style.display = 'block';
+  const ps = document.getElementById('preview-section'); if(ps) ps.style.display = 'none';
+  return true;
+}
+
+function startDraftAutosave(){
+  if(_draftAutosave) return;
+  _draftAutosave = setInterval(saveDraft, 4000);
+  window.addEventListener('beforeunload', saveDraft);
 }
 
 document.addEventListener('keydown', e => {
@@ -1199,6 +1270,7 @@ function parseTestingCSV(text){
   document.getElementById('groups-section').style.display='block';
   document.getElementById('preview-section').style.display='none';
   renderRoster();
+  saveDraft();
 }
 
 function showCSVAlert(msg,cls){ document.getElementById('csv-alert').innerHTML=`<div class="alert ${cls}">${msg}</div>`; }
@@ -3274,6 +3346,7 @@ async function clearAllData(){
   currentTestingNames=new Set();
   spGroupState={};
   ffGroupState={};
+  clearDraft();
   alert('All data cleared.');
   renderRoster();
   renderHistory();
