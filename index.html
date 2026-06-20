@@ -805,6 +805,9 @@ const ROWS_PER_PAGE = 13;
 const BEARS_LOGO = "https://barestkd-cyber.github.io/curriculum/BaresTKDPatch.png";
 const IMAS_LOGO  = "https://barestkd-cyber.github.io/curriculum/IMAS-Patch.png";
 const DEFAULT_PW = "barestkd2024";
+// Password gate for destructive actions (delete testing, change result, clear all).
+// Uses a locally-changed password if one was set via Change Password, else the default.
+function getStoredPw(){ return localStorage.getItem('tkd_pw') || DEFAULT_PW; }
 
 // ── SUPABASE ──
 // Auth + the Supabase client come from the shared module (window.BTKD),
