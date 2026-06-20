@@ -1231,6 +1231,19 @@ function handleTestingCSV(file){
   reader.readAsText(file);
 }
 
+// Spark line items read "… for <Participant> (DOB: …)". For family-member
+// purchases the First/Last Name columns are the BUYER, not the person testing,
+// so the real tester's name lives in the item text. Pull it from there.
+function participantFromItem(item, fallback){
+  if(item){
+    const m=item.match(/\bfor\s+([^()]+?)\s*\(DOB/i);
+    if(m && m[1] && m[1].trim()) return m[1].trim();
+    const i=item.toLowerCase().lastIndexOf(' for ');
+    if(i!==-1){ const cand=item.slice(i+5).replace(/\s*\(DOB.*$/i,'').trim(); if(cand) return cand; }
+  }
+  return fallback;
+}
+
 function parseTestingCSV(text){
   const parsed=parseCSV(text);
   if(!parsed){ showCSVAlert('Could not parse CSV.','alert-warn'); return; }
@@ -1253,7 +1266,8 @@ function parseTestingCSV(text){
     if(!first&&!last) return;
     if(IGNORE_KEYWORDS.some(kw=>item.toLowerCase().includes(kw))) return;
 
-    const name=(first+' '+last).toUpperCase();
+    // Tester name comes from the item ("… for <Name> (DOB)"), not the buyer columns.
+    const name=participantFromItem(item,(first+' '+last).trim()).toUpperCase();
 
     // Group key — bucket into Cubs, Late Testing, or Saturday Testing
     const itemLower=item.toLowerCase();
