@@ -922,7 +922,7 @@ function _buildDraft(){
 // degrades silently if the testing_draft table doesn't exist yet.
 function saveDraft(){
   try{
-    if(!Array.isArray(groups) || !groups.length) return; // nothing to save yet
+    if(!Array.isArray(groups) || !groups.length){ if(_lastSavedJSON!=='') clearDraft(); return; } // emptied — drop the draft so it can't resurrect
     const d = _buildDraft();
     const cmp = JSON.stringify({ ...d, savedAt: 0 }); // ignore timestamp when diffing
     if(cmp === _lastSavedJSON) return;                 // nothing changed
@@ -1417,7 +1417,7 @@ function sortGroupByRank(gid){
 
 function addStudentToGroup(gid){ const g=groups.find(g=>g.id===gid); if(g){g.students.push({name:'',rank:'',age:'',type:'tkd',status:'manual'});renderGroups();} }
 function addManualGroup(){ groups.push({id:Date.now(),name:'New Group',datetime:'',students:[]}); renderGroups(); }
-function deleteGroup(gid){ if(!confirm('Delete this group?')) return; groups=groups.filter(g=>g.id!==gid); renderGroups(); }
+function deleteGroup(gid){ if(!confirm('Delete this group?')) return; groups=groups.filter(g=>g.id!==gid); renderGroups(); saveDraft(); }
 
 // ── RANK SORT WITH SEPARATORS ──
 function rankIndex(rank){
