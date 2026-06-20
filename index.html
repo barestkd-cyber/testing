@@ -1054,7 +1054,7 @@ function switchTab(name,btn){
   document.getElementById('tab-'+name).classList.add('active');
   if(btn) btn.classList.add('active');
   if(name==='roster') renderRoster();
-  if(name==='history') renderHistory();
+  if(name==='history') refreshHistory();
   if(name==='sparring') renderSparringTab();
   if(name==='formsflow') renderFormsFlowTab();
   if(name==='boards') renderBoardsTab();
@@ -1877,6 +1877,15 @@ function getHistory(){
   return _historyCache||[];
 }
 
+// Always re-fetch history from Supabase before rendering, so the view can
+// never show an emptied cache (e.g. after a save nulled it) when the rows
+// still exist in the database.
+async function refreshHistory(){
+  _historyCache=null;
+  await getHistoryAsync();
+  renderHistory();
+}
+
 async function loadHistoryDetail(sessionId){
   const {data,error}=await sb.from('testing_history').select('*').eq('session_id',sessionId);
   if(error){ console.error('loadHistoryDetail error',error); return null; }
@@ -2163,9 +2172,7 @@ async function deleteHistory(id){
   // Delete from Supabase
   await sb.from('testing_history').delete().eq('session_id',id);
   await sb.from('testing_sessions').delete().eq('id',id);
-  _historyCache=null;
-  await getHistoryAsync();
-  renderHistory();
+  await refreshHistory();
 }
 function reprintHistory(){
   if(!currentHistoryId) return;
