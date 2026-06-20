@@ -1473,7 +1473,7 @@ function buildBoardsRows(){
     (g.students||[]).forEach(s=>{
       if(!s.name||!String(s.name).trim()) return;
       const r=roster.find(x=>x.name===s.name);
-      const raw=r?r.rank:s.rank||'';
+      const raw=(s.rank&&String(s.rank).trim())?s.rank:(r?r.rank:'');
       const rank=normalizeRank(raw)||raw;
       const age=r?r.age||s.age||'':s.age||'';
       const boardSize=getBoardSize(rank,age);
@@ -3410,7 +3410,7 @@ function spFightersForGroup(g){
   const byName=new Map();
   g.students.filter(s=>s.name).forEach(s=>{
     const r=roster.find(x=>x.name===s.name);
-    const raw=r?r.rank:s.rank||'';
+    const raw=(s.rank&&String(s.rank).trim())?s.rank:(r?r.rank:'');
     const rank=normalizeRank(raw)||raw;
     byName.set(s.name,{
       id:s.name,name:s.name,rank,age:r?r.age||s.age||'':s.age||'',isVolunteer:false
@@ -3441,7 +3441,7 @@ function spBelowGreenSheetChoices(g){
   getStudentsInSheetOrder(g).forEach(s=>{
     if(!s.name||extraNames.has(s.name)) return;
     const r=roster.find(x=>x.name===s.name);
-    const raw=r?r.rank:s.rank||'';
+    const raw=(s.rank&&String(s.rank).trim())?s.rank:(r?r.rank:'');
     const rank=normalizeRank(raw)||raw;
     if(spIsGreenBeltOrAbove(rank)) return;
     out.push({
@@ -4155,7 +4155,7 @@ function ffStudentsOrdered(g){
   const byName=new Map();
   g.students.filter(s=>s.name).forEach(s=>{
     const r=roster.find(x=>x.name===s.name);
-    const raw=r?r.rank:s.rank||'';
+    const raw=(s.rank&&String(s.rank).trim())?s.rank:(r?r.rank:'');
     const rank=normalizeRank(raw)||raw;
     const age=r?r.age||s.age||'':s.age||'';
     byName.set(s.name,{id:s.name,name:s.name,rank,age});
