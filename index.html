@@ -1244,6 +1244,10 @@ function participantFromItem(item, fallback){
   return fallback;
 }
 
+// Collapse stray/double spaces and casing so "Arabella  Cortes" matches the
+// roster's "ARABELLA CORTES".
+function normTesterName(s){ return String(s||'').replace(/\s+/g,' ').trim().toUpperCase(); }
+
 function parseTestingCSV(text){
   const parsed=parseCSV(text);
   if(!parsed){ showCSVAlert('Could not parse CSV.','alert-warn'); return; }
@@ -1267,7 +1271,7 @@ function parseTestingCSV(text){
     if(IGNORE_KEYWORDS.some(kw=>item.toLowerCase().includes(kw))) return;
 
     // Tester name comes from the item ("… for <Name> (DOB)"), not the buyer columns.
-    const name=participantFromItem(item,(first+' '+last).trim()).toUpperCase();
+    const name=normTesterName(participantFromItem(item,(first+' '+last)));
 
     // Group key — bucket into Cubs, Late Testing, or Saturday Testing
     const itemLower=item.toLowerCase();
@@ -1281,7 +1285,7 @@ function parseTestingCSV(text){
     if(!rawGroups[groupKey]) rawGroups[groupKey]=[];
     if(rawGroups[groupKey].find(s=>s.name===name)) return; // dedup
 
-    const match=roster.find(r=>r.name===name);
+    const match=roster.find(r=>normTesterName(r.name)===name);
     rawGroups[groupKey].push({
       name,
       rank: match?match.rank:'',
