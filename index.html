@@ -2168,10 +2168,57 @@ async function deleteHistory(id){
   const pw=prompt('Enter password to delete this testing record:');
   if(pw===null) return;
   if(pw!==getStoredPw()){ alert('Incorrect password.'); return; }
-  if(!confirm('Are you sure? This cannot be undone.')) return;
-  // Delete from Supabase
+  if(!confirm('Delete this testing AND roll back the rank advancements it made? This cannot be undone.')) return;
+
+  // 1. Read this session's recorded results before deleting (to undo its effects).
+  let sessionRows=[];
+  try{
+    const {data}=await sb.from('testing_history').select('student_name,rank_from,rank_to,result').eq('session_id',id);
+    sessionRows=data||[];
+  }catch(e){ console.error('deleteHistory load rows error',e); }
+
+  // 2. Delete the session.
   await sb.from('testing_history').delete().eq('session_id',id);
   await sb.from('testing_sessions').delete().eq('id',id);
+
+  // 3. Roll back the rank advancements this testing applied — but only where the
+  //    student is STILL at the rank it bumped them to (never clobber a later promotion).
+  const roster=await getRosterAsync();
+  const affected=new Set();
+  const changedIdx=new Set();
+  sessionRows.forEach(row=>{
+    const nm=row.student_name; if(!nm) return;
+    affected.add(nm);
+    const idx=roster.findIndex(r=>r.name===nm); if(idx===-1) return;
+    if((row.result||'pass')==='pass' && row.rank_to && row.rank_from && roster[idx].rank===row.rank_to){
+      roster[idx].rank=row.rank_from;
+      changedIdx.add(idx);
+    }
+  });
+
+  // 4. Recompute lastTested for affected students from their REMAINING history
+  //    (this session's rows are already gone), falling back to blank.
+  if(affected.size){
+    let remaining=[];
+    try{
+      const {data}=await sb.from('testing_history').select('student_name,tested_date').in('student_name',[...affected]);
+      remaining=data||[];
+    }catch(e){ console.error('deleteHistory remaining error',e); }
+    const lastByName={};
+    remaining.forEach(r=>{ const d=r.tested_date||''; if(d && (!lastByName[r.student_name]||d>lastByName[r.student_name])) lastByName[r.student_name]=d; });
+    affected.forEach(nm=>{
+      const idx=roster.findIndex(r=>r.name===nm); if(idx===-1) return;
+      const newLast=lastByName[nm]||'';
+      if((roster[idx].lastTested||'')!==newLast){ roster[idx].lastTested=newLast; changedIdx.add(idx); }
+    });
+  }
+
+  // 5. Persist only the rows we changed.
+  for(const idx of changedIdx){ await saveRosterRow(roster[idx]); }
+
+  // 6. Refresh roster + history views from the DB.
+  await getRosterAsync();
+  renderRoster();
   await refreshHistory();
 }
 function reprintHistory(){
