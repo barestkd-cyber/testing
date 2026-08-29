@@ -429,7 +429,7 @@ html{overflow-x:hidden;}
     <div class="tab-panel active" id="tab-generate">
       <div class="section-header">
         <div class="section-title">Generate Judge Sheets</div>
-        <div class="section-subtitle">Upload testing CSV → review groups → print everything at once</div>
+        <div class="section-subtitle">Load registrations from the CRM → review groups → print everything at once</div>
       </div>
 
       <div class="card">
@@ -447,13 +447,19 @@ html{overflow-x:hidden;}
       </div>
 
       <div class="card">
-        <div class="card-title">Step 2 — Upload Spark Testing CSV</div>
-        <div class="alert alert-info" style="margin-bottom:14px;">This is your <strong>testing signup export</strong> from Spark — not the member list. It has First Name, Last Name, and Item columns.</div>
-        <div class="drop-zone" id="csv-drop">
-          <input type="file" accept=".csv" onchange="handleTestingCSV(this.files[0])">
-          <div class="drop-zone-icon">📄</div>
-          <div class="drop-zone-text"><strong>Click to upload</strong> or drag & drop Spark testing CSV</div>
+        <div class="card-title">Step 2 — Load Testing Registrations</div>
+        <div class="alert alert-info" style="margin-bottom:14px;">Registrations come straight from the <strong>CRM</strong> — everyone who signed up on the website or was rung up at the desk. Cash or comped students who never went through a checkout: load first, then use <strong>+ Add</strong> on their session.</div>
+        <div class="btn-row" style="margin-bottom:12px;">
+          <button class="inline-btn gold" onclick="loadTestingFromCRM()" style="font-size:0.95rem;padding:12px 26px;">⟳ Load from CRM</button>
         </div>
+        <details>
+          <summary style="cursor:pointer;color:var(--gray-400);font-size:0.82rem;padding:4px 0;">Fallback — upload a Spark testing CSV instead</summary>
+          <div class="drop-zone" id="csv-drop" style="margin-top:10px;">
+            <input type="file" accept=".csv" onchange="handleTestingCSV(this.files[0])">
+            <div class="drop-zone-icon">📄</div>
+            <div class="drop-zone-text"><strong>Click to upload</strong> or drag & drop Spark testing CSV</div>
+          </div>
+        </details>
         <div id="csv-alert" style="margin-top:12px;"></div>
       </div>
 
@@ -497,18 +503,18 @@ html{overflow-x:hidden;}
     <div class="tab-panel" id="tab-roster">
       <div class="section-header">
         <div class="section-title">Roster</div>
-        <div class="section-subtitle">Full student list — upload a testing CSV to highlight who is on this test vs last saved testing</div>
+        <div class="section-subtitle">Read live from the CRM (active + trial students). Ranks, sizes and edits live in the CRM — this list follows it.</div>
       </div>
 
       <div id="roster-legend" class="roster-legend" style="display:flex;flex-wrap:wrap;gap:12px 20px;margin-bottom:14px;padding:12px 14px;background:#151515;border:1px solid #2a2a2a;border-radius:6px;font-size:0.8rem;">
-        <span><span class="roster-swatch roster-swatch-green"></span> On current testing list (uploaded CSV)</span>
+        <span><span class="roster-swatch roster-swatch-green"></span> On current testing list (loaded from CRM)</span>
         <span><span class="roster-swatch roster-swatch-yellow"></span> Not on current list · was on last saved testing (History)</span>
         <span><span class="roster-swatch roster-swatch-red"></span> Not on current list · not on last saved testing</span>
       </div>
 
       <div class="card">
         <div class="btn-row" style="margin-bottom:14px;">
-          <button class="inline-btn" onclick="addRosterRow()">+ Add Student</button>
+          <button class="inline-btn secondary" onclick="_rosterCache=null;getRosterAsync().then(renderRoster)">⟳ Refresh</button>
           <button class="inline-btn secondary" onclick="exportRosterCSV()">Export CSV</button>
           <div style="display:flex;gap:8px;align-items:center;margin-left:auto;flex-wrap:wrap;">
             <select id="roster-sort" onchange="renderRoster()"
@@ -537,22 +543,10 @@ html{overflow-x:hidden;}
         <div id="roster-count" style="margin-top:10px;font-size:0.82rem;color:var(--gray-400);"></div>
       </div>
 
-      <details style="margin-bottom:20px;">
-        <summary style="cursor:pointer;padding:12px 16px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;font-family:Oswald,sans-serif;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--gray-400);list-style:none;">
-          ▶ &nbsp;Import / Update from Spark Member CSV
-        </summary>
-        <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-top:none;border-radius:0 0 8px 8px;padding:20px;">
-          <div class="alert alert-info" style="margin-bottom:14px;">
-            Upload your Spark <strong>member export</strong>. Needs: <strong>First Name, Last Name, Age, Cubs</strong> rank, <strong>Tae Kwon Do</strong> rank columns. Existing students update — nothing gets deleted.
-          </div>
-          <div class="drop-zone" id="roster-drop" style="padding:18px;">
-            <input type="file" accept=".csv" onchange="handleRosterCSV(this.files[0])">
-            <div class="drop-zone-icon" style="font-size:1.4rem;">📋</div>
-            <div class="drop-zone-text"><strong>Click to upload</strong> Spark member CSV</div>
-          </div>
-          <div id="roster-import-alert" style="margin-top:12px;"></div>
-        </div>
-      </details>
+      <!-- The Spark member-CSV import used to live here. Retired 2026-08-28:
+           the roster reads contacts straight out of the CRM, so there is no
+           second copy to feed. New students, ranks and sizes are entered in
+           the CRM and appear here on refresh. -->
     </div>
 
     <!-- SPARRING FLOW TAB -->
@@ -562,7 +556,7 @@ html{overflow-x:hidden;}
         <div class="section-subtitle">Manual round builder — click fighters, add 1v1 (2 selected) or 2v1 (3 selected: solo first), then Set Round / Next Round</div>
       </div>
       <div id="sparring-no-groups" class="alert alert-info">
-        No testing groups loaded yet. Go to <strong>Generate Sheets</strong> tab, upload your Spark testing CSV, and come back here.
+        No testing groups loaded yet. Go to <strong>Generate Sheets</strong>, hit <strong>Load from CRM</strong>, and come back here.
       </div>
       <div id="sparring-groups-area"></div>
     </div>
@@ -574,7 +568,7 @@ html{overflow-x:hidden;}
         <div class="section-subtitle">Manual forms groups by rank — select names, add to a group, then Set Group / Next Group (same testing groups as Sparring)</div>
       </div>
       <div id="formsflow-no-groups" class="alert alert-info">
-        No testing groups loaded yet. Go to <strong>Generate Sheets</strong> tab, upload your Spark testing CSV, then return here.
+        No testing groups loaded yet. Go to <strong>Generate Sheets</strong>, hit <strong>Load from CRM</strong>, then return here.
       </div>
       <div id="formsflow-groups-area"></div>
     </div>
@@ -586,7 +580,7 @@ html{overflow-x:hidden;}
         <div class="section-subtitle">Brown belt and above on your testing list — sizes from the same chart as judge sheets · check breaks as you go</div>
       </div>
       <div id="boards-no-data" class="alert alert-info">
-        No testing groups loaded yet. Go to <strong>Generate Sheets</strong>, upload your Spark testing CSV, then return here.
+        No testing groups loaded yet. Go to <strong>Generate Sheets</strong>, hit <strong>Load from CRM</strong>, then return here.
       </div>
       <div id="boards-content" style="display:none;" class="boards-print-zone"></div>
     </div>
@@ -1090,114 +1084,13 @@ function findCol(headers, ...terms){
   return -1;
 }
 
-// ── ROSTER CSV IMPORT ──
-// Roster drop - use delegation so it works whether panel is open or not
-document.addEventListener('dragover', e=>{
-  if(e.target.closest('#roster-drop')){ e.preventDefault(); e.target.closest('#roster-drop').classList.add('drag-over'); }
-});
-document.addEventListener('dragleave', e=>{
-  if(e.target.closest('#roster-drop')) e.target.closest('#roster-drop').classList.remove('drag-over');
-});
-document.addEventListener('drop', e=>{
-  if(e.target.closest('#roster-drop')){
-    e.preventDefault();
-    e.target.closest('#roster-drop').classList.remove('drag-over');
-    if(e.dataTransfer.files[0]) handleRosterCSV(e.dataTransfer.files[0]);
-  }
-});
-
-// ── ROSTER CSV IMPORT ──
-const rosterDrop = document.getElementById('roster-drop');
-rosterDrop.addEventListener('dragover',e=>{e.preventDefault();rosterDrop.classList.add('drag-over');});
-rosterDrop.addEventListener('dragleave',()=>rosterDrop.classList.remove('drag-over'));
-rosterDrop.addEventListener('drop',e=>{e.preventDefault();rosterDrop.classList.remove('drag-over');if(e.dataTransfer.files[0])handleRosterCSV(e.dataTransfer.files[0]);});
-
-function handleRosterCSV(file){
-  if(!file) return;
-  const reader=new FileReader();
-  reader.onload=e=>importRosterFromCSV(e.target.result);
-  reader.readAsText(file);
-}
-
-async function importRosterFromCSV(text){
-  const parsed=parseCSV(text);
-  if(!parsed){ showAlert('roster-import-alert','Could not parse CSV.','alert-warn'); return; }
-  const {headers,rows}=parsed;
-
-  const iFirst  = findCol(headers,'first name','first');
-  const iLast   = findCol(headers,'last name','last');
-  const iAge    = findCol(headers,'age');
-  const iCubs   = findCol(headers,'cubs');
-  const iTKD    = findCol(headers,'tae kwon do','taekwondo','tkd','tae kwon');
-  const iEmail  = findCol(headers,'email');
-
-  if(iFirst===-1||iLast===-1){
-    showAlert('roster-import-alert','Could not find First Name / Last Name columns.','alert-warn');
-    return;
-  }
-
-  const existing = getRoster();
-  let added=0, updated=0, skipped=0;
-  const toSave=[];
-
-  rows.forEach(cols=>{
-    const first=(cols[iFirst]||'').trim();
-    const last =(cols[iLast]||'').trim();
-    if(!first&&!last){skipped++;return;}
-
-    const name=(first+' '+last).toUpperCase();
-    const age  = iAge!==-1 ? (cols[iAge]||'').trim() : '';
-
-    const email = iEmail!==-1 ? (cols[iEmail]||'').trim().toLowerCase() : '';
-
-    const cubsRank = iCubs!==-1 ? (cols[iCubs]||'').trim() : '';
-    const tkdRank  = iTKD!==-1  ? (cols[iTKD]||'').trim()  : '';
-
-    let rank='', type='tkd';
-    if(cubsRank){ rank=cubsRank; type='cubs'; }
-    else if(tkdRank){ rank=tkdRank; type='tkd'; }
-    else { skipped++; return; }
-
-    rank = normalizeRank(rank);
-
-    const existIdx = existing.findIndex(r=>r.name===name);
-    if(existIdx!==-1){
-      existing[existIdx].rank=rank;
-      existing[existIdx].type=type;
-      existing[existIdx].age=age;
-      if(email) existing[existIdx].email=email;
-      toSave.push(existing[existIdx]);
-      updated++;
-    } else {
-      const newS={id:null,name,rank,type,age,beltSize:'',lastTested:'',email};
-      existing.push(newS);
-      toSave.push(newS);
-      added++;
-    }
-  });
-
-  // Save all to Supabase
-  for(const s of toSave){
-    const saved=await saveRosterRow(s);
-    if(saved&&!s.id) s.id=saved.id;
-  }
-
-  // Update allowed_emails from email column — deduplicate first
-  const emailMap=new Map();
-  toSave.filter(s=>s.email).forEach(s=>emailMap.set(s.email, s.name));
-  const emailRows=[...emailMap.entries()].map(([email,name])=>({email,name}));
-  console.log('Saving emails:', emailRows.length, emailRows.slice(0,3));
-  if(emailRows.length){
-    const {data:eData, error:eErr}=await sb.from('allowed_emails').upsert(emailRows, {onConflict:'email'});
-    if(eErr) console.error('allowed_emails error:', eErr);
-    else console.log('Emails saved successfully:', emailRows.length);
-  }
-
-  _rosterCache=null;
-  await getRosterAsync();
-  renderRoster();
-  showAlert('roster-import-alert',`Import complete: ${added} added, ${updated} updated, ${skipped} skipped.`,'alert-success');
-}
+// ── ROSTER SOURCE ──
+// The Spark member-CSV import lived here until 2026-08-28. The roster now
+// reads contacts straight out of the CRM (getRosterAsync below), so there is
+// no second student list to feed or drift. One side effect died with it: the
+// import also topped up allowed_emails for family logins. New family emails
+// now enter through the CRM, which does not sync that table - flagged to the
+// owner as its own decision.
 
 function normalizeRank(raw){
   if(!raw) return '';
@@ -1334,6 +1227,149 @@ function parseTestingCSV(text){
 
 function showCSVAlert(msg,cls){ document.getElementById('csv-alert').innerHTML=`<div class="alert ${cls}">${msg}</div>`; }
 function showAlert(elId,msg,cls){ document.getElementById(elId).innerHTML=`<div class="alert ${cls}">${msg}</div>`; }
+
+// ── LOAD FROM CRM ──
+// The read switch (owner, 2026-08-28). Registrations live in the CRM -
+// testing_signups hanging off testing_dates - written by the website
+// checkout, the desk POS, and the Spark import. This loads them into the
+// exact same `groups` shape the CSV parser builds, so every downstream flow
+// (sheets, sparring, forms, boards, history) works unchanged. The CSV upload
+// above survives only as a fallback door.
+
+/** Age from a YYYY-MM-DD dob, split by hand so a UTC parse cannot shave a
+ *  day off and mis-age a birthday kid. */
+function ageFromDob(dob){
+  const p=String(dob||'').split('-').map(Number);
+  if(p.length!==3||!p[0]) return '';
+  const t=new Date();
+  let a=t.getFullYear()-p[0];
+  if((t.getMonth()+1)<p[1]||((t.getMonth()+1)===p[1]&&t.getDate()<p[2])) a--;
+  return (a>=0&&a<120)?String(a):'';
+}
+
+// The CRM speaks "Senior Yellow Belt" / "Cub Green Belt" / "1st Degree
+// Decided Level 2" (portal/shared/belts.js). This app speaks "Sr. Yellow
+// Belt" / cubs-typed "Green Belt" / "1st Degree Decided Black Belt Lvl 2.".
+// Translate at the boundary; everything downstream stays in app vocabulary.
+const CRM_DEGREE_MAP={
+  '1st degree decided level 2':'1st Degree Decided Black Belt Lvl 2.',
+  '1st degree senior level 2':'1st Degree Senior Black Belt Lvl 2.',
+  '2nd degree black belt level 2':'2nd Degree Black Belt Lvl 2.',
+  '2nd degree decided black belt level 2':'2nd Degree Decided Black Belt Lvl 2.',
+  '2nd degree senior black belt level 2':'2nd Degree Senior Black Belt Lvl 2.'
+};
+function isCrmCubRank(raw){ return /\bcubs?\b/i.test(String(raw||'')); }
+function crmRankToApp(raw){
+  const r=String(raw||'').trim();
+  if(!r) return '';
+  if(isCrmCubRank(r)) return normalizeRank(r.replace(/\bcubs?\s+/i,'').trim());
+  const deg=CRM_DEGREE_MAP[r.toLowerCase()];
+  if(deg) return deg;
+  return normalizeRank(r);
+}
+
+/** "2026-08-29" -> "Sat Aug 29", via Date.UTC so the day never shifts. */
+function crmPrettyDay(ymd){
+  const p=String(ymd||'').split('-').map(Number);
+  if(p.length!==3||!p[0]) return String(ymd||'');
+  const d=new Date(Date.UTC(p[0],p[1]-1,p[2]));
+  const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return DOW[d.getUTCDay()]+' '+MON[p[1]-1]+' '+p[2];
+}
+
+async function loadTestingFromCRM(){
+  showCSVAlert('Loading registrations from the CRM…','alert-info');
+  try{
+    const dRes=await sb.from('testing_dates')
+      .select('id,label,test_date,start_time,sort_order')
+      .order('test_date').order('sort_order');
+    if(dRes.error) throw dRes.error;
+    const all=dRes.data||[];
+    if(!all.length){ showCSVAlert('No testing dates exist in the CRM yet. Set the event up there first.','alert-warn'); return; }
+
+    // The event = every session within two weeks of the nearest upcoming
+    // date (or, with nothing upcoming, the most recent past one). A Friday
+    // Cubs night, both Saturday groups and the Tuesday late session load as
+    // one testing; last spring's event does not ride along.
+    const today=new Date().toLocaleDateString('en-CA');
+    const future=all.filter(r=>String(r.test_date)>=today);
+    const anchor=String(future.length?future[0].test_date:all[all.length-1].test_date);
+    const dayNum=s=>Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10))/864e5;
+    const sessions=all.filter(r=>Math.abs(dayNum(String(r.test_date))-dayNum(anchor))<=14);
+
+    const sRes=await sb.from('testing_signups')
+      .select('testing_date_id,contact_id,student_name,rank,program,paid,source,created_at')
+      .in('testing_date_id',sessions.map(r=>r.id))
+      .order('created_at');
+    if(sRes.error) throw sRes.error;
+    const signups=sRes.data||[];
+
+    // Linked contacts carry the CURRENT rank and DOB - fresher than the
+    // snapshot frozen on the signup the night someone registered.
+    const cids=[...new Set(signups.map(r=>r.contact_id).filter(Boolean))];
+    const cmap={};
+    for(let i=0;i<cids.length;i+=100){
+      const cRes=await sb.from('contacts')
+        .select('id,first_name,last_name,rank,dob').in('id',cids.slice(i,i+100));
+      if(cRes.error) throw cRes.error;
+      (cRes.data||[]).forEach(c=>cmap[c.id]=c);
+    }
+
+    groups=sessions.map((sess,i)=>{
+      const students=[];
+      signups.filter(r=>r.testing_date_id===sess.id).forEach(r=>{
+        const c=r.contact_id?cmap[r.contact_id]:null;
+        const name=normTesterName(c?((c.first_name||'')+' '+(c.last_name||'')):(r.student_name||''));
+        if(!name||students.find(s=>s.name===name)) return;   // dedup, same as the CSV path
+        const rawRank=(c&&c.rank)?c.rank:(r.rank||'');
+        const cub=isCrmCubRank(rawRank)||r.program==='Cubs';
+        students.push({
+          name,
+          rank: crmRankToApp(rawRank),
+          age: (c&&c.dob)?ageFromDob(c.dob):'',
+          type: cub?'cubs':'tkd',
+          status: c?'matched':'manual'
+        });
+      });
+      return {
+        id: Date.now()+i,
+        name: sess.label||'Testing',
+        datetime: crmPrettyDay(sess.test_date)+(sess.start_time?' · '+sess.start_time:''),
+        students
+      };
+    });
+
+    // Prefill Step 1 from the event, never overwriting what he typed.
+    const MONF=['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+    const mEl=document.getElementById('test-month'), dEl=document.getElementById('test-date');
+    if(mEl&&!mEl.value.trim()) mEl.value=MONF[+anchor.slice(5,7)-1]+' '+anchor.slice(0,4);
+    if(dEl&&!dEl.value) dEl.value=anchor;
+
+    currentTestingNames=new Set();
+    groups.forEach(g=>g.students.forEach(s=>{ if(s.name) currentTestingNames.add((s.name||'').trim().toUpperCase()); }));
+
+    const total=groups.reduce((s,g)=>s+g.students.length,0);
+    const unlinked=groups.reduce((s,g)=>s+g.students.filter(st=>st.status!=='matched').length,0);
+    const needRank=groups.reduce((s,g)=>s+g.students.filter(st=>!st.rank).length,0);
+    showCSVAlert(
+      `Loaded ${total} registered student${total!==1?'s':''} across ${groups.length} session${groups.length!==1?'s':''} from the CRM. `+
+      (unlinked>0?`<strong>${unlinked} not linked to a CRM profile.</strong> `:'')+
+      (needRank>0?`<strong>${needRank} need a rank assigned.</strong>`:'All ranks in ✓')+
+      '<br>Cash or comped students who never went through a checkout are not on this list — add them with <strong>+ Add</strong> on their session.',
+      (unlinked>0||needRank>0)?'alert-warn':'alert-success'
+    );
+
+    renderGroups();
+    document.getElementById('groups-section').style.display='block';
+    document.getElementById('preview-section').style.display='none';
+    renderRoster();
+    saveDraft();
+  }catch(e){
+    console.error('loadTestingFromCRM',e);
+    showCSVAlert('Could not load from the CRM: '+((e&&e.message)?e.message:'unknown error'),'alert-warn');
+  }
+}
 
 // ── GROUPS UI ──
 function renderGroups(){
@@ -1639,7 +1675,7 @@ function renderBoardsTab(){
   if(!noEl||!area) return;
   if(!groups||!groups.length){
     noEl.style.display='block';
-    noEl.innerHTML='No testing groups loaded yet. Go to <strong>Generate Sheets</strong>, upload your Spark testing CSV, then return here.';
+    noEl.innerHTML='No testing groups loaded yet. Go to <strong>Generate Sheets</strong>, hit <strong>Load from CRM</strong>, then return here.';
     area.style.display='none';
     area.innerHTML='';
     return;
@@ -1661,7 +1697,7 @@ function renderBoardsTab(){
 function printBoardsChecklist(){
   const rows=buildBoardsRows();
   if(!rows.length){
-    alert('No students need boards from the current chart. Upload a testing CSV with Brown+ / black-belt students and ages first.');
+    alert('No students need boards from the current chart. Load a testing with Brown+ / black-belt students and ages first.');
     return;
   }
   const month=document.getElementById('test-month')?.value.trim()||'TESTING';
@@ -1836,33 +1872,11 @@ async function saveToHistory(){
   const sessionId = await saveSessionToSupabase(month, testDate, normalizedGroups);
   if(!sessionId){ alert('Error saving to history. Please try again.'); return; }
 
-  // Auto-update roster: lastTested for all, advance rank for passing students
-  const roster=getRoster();
-  let updated=0, advanced=0;
-  const rosterUpdates=[];
-
-  normalizedGroups.forEach(g=>{
-    const isCubs=g.name&&g.name.toLowerCase().includes('cub');
-    (g.students||[]).forEach(s=>{
-      const idx=roster.findIndex(r=>r.name===s.name);
-      if(idx===-1) return;
-      roster[idx].lastTested=testDate;
-      updated++;
-      if((s.result||'pass')==='pass'){
-        const next=getNextRank(s.rank, isCubs);
-        if(next){ roster[idx].rank=next; advanced++; }
-      }
-      rosterUpdates.push(roster[idx]);
-    });
-  });
-
-  // Save roster updates to Supabase
-  for(const student of rosterUpdates){
-    await saveRosterRow(student);
-  }
-  saveRoster(roster);
-
-  alert(`Saved to history!\nRoster updated: ${updated} last-tested dates, ${advanced} rank${advanced!==1?'s':''} advanced.`);
+  // Rank advancement no longer happens here (2026-08-28). The roster reads
+  // the CRM live, and writing new ranks back is the CRM promote step - a
+  // reviewed, per-student pass after the event - not a silent side effect
+  // of saving sheets. Until that step exists, ranks change only in the CRM.
+  alert('Saved to history!\nRanks were NOT changed - promote ranks in the CRM after the event.');
   await getHistoryAsync();
   renderRoster();
 }
@@ -2186,55 +2200,14 @@ async function deleteHistory(id){
   const pw=prompt('Enter password to delete this testing record:');
   if(pw===null) return;
   if(pw!==getStoredPw()){ alert('Incorrect password.'); return; }
-  if(!confirm('Delete this testing AND roll back the rank advancements it made? This cannot be undone.')) return;
+  if(!confirm('Delete this testing record? This cannot be undone.')) return;
 
-  // 1. Read this session's recorded results before deleting (to undo its effects).
-  let sessionRows=[];
-  try{
-    const {data}=await sb.from('testing_history').select('student_name,rank_from,rank_to,result').eq('session_id',id);
-    sessionRows=data||[];
-  }catch(e){ console.error('deleteHistory load rows error',e); }
-
-  // 2. Delete the session.
+  // Just the history rows. Since 2026-08-28 saving a testing no longer
+  // advances ranks (that is the CRM promote step), so there is nothing to
+  // roll back here - ranks live in the CRM and only change there.
   await sb.from('testing_history').delete().eq('session_id',id);
   await sb.from('testing_sessions').delete().eq('id',id);
 
-  // 3. Roll back the rank advancements this testing applied — but only where the
-  //    student is STILL at the rank it bumped them to (never clobber a later promotion).
-  const roster=await getRosterAsync();
-  const affected=new Set();
-  const changedIdx=new Set();
-  sessionRows.forEach(row=>{
-    const nm=row.student_name; if(!nm) return;
-    affected.add(nm);
-    const idx=roster.findIndex(r=>r.name===nm); if(idx===-1) return;
-    if((row.result||'pass')==='pass' && row.rank_to && row.rank_from && roster[idx].rank===row.rank_to){
-      roster[idx].rank=row.rank_from;
-      changedIdx.add(idx);
-    }
-  });
-
-  // 4. Recompute lastTested for affected students from their REMAINING history
-  //    (this session's rows are already gone), falling back to blank.
-  if(affected.size){
-    let remaining=[];
-    try{
-      const {data}=await sb.from('testing_history').select('student_name,tested_date').in('student_name',[...affected]);
-      remaining=data||[];
-    }catch(e){ console.error('deleteHistory remaining error',e); }
-    const lastByName={};
-    remaining.forEach(r=>{ const d=r.tested_date||''; if(d && (!lastByName[r.student_name]||d>lastByName[r.student_name])) lastByName[r.student_name]=d; });
-    affected.forEach(nm=>{
-      const idx=roster.findIndex(r=>r.name===nm); if(idx===-1) return;
-      const newLast=lastByName[nm]||'';
-      if((roster[idx].lastTested||'')!==newLast){ roster[idx].lastTested=newLast; changedIdx.add(idx); }
-    });
-  }
-
-  // 5. Persist only the rows we changed.
-  for(const idx of changedIdx){ await saveRosterRow(roster[idx]); }
-
-  // 6. Refresh roster + history views from the DB.
   await getRosterAsync();
   renderRoster();
   await refreshHistory();
@@ -2264,59 +2237,40 @@ function reprintHistory(){
   setTimeout(()=>window.print(),300);
 }
 
-// ── ROSTER (Supabase) ──
+// ── ROSTER (CRM contacts, read-only) ──
+// The read switch (owner, 2026-08-28): the roster IS the CRM's contact list,
+// active and trial students, mapped into the shape this app always used. The
+// old parallel `students` table is retired - no writes happen from here, so
+// the roster can never drift from what the CRM says. Rank promotion after a
+// testing is the CRM promote step, built separately.
 async function getRosterAsync(){
   if(_rosterCache) return _rosterCache;
-  const {data,error}=await sb.from('students').select('*').order('name');
+  const {data,error}=await sb.from('contacts')
+    .select('id,first_name,last_name,rank,dob,belt_size,program,segment,rank_date,email,on_pace')
+    .in('segment',['active','trial'])
+    .order('last_name').order('first_name');
   if(error){ console.error('getRoster error', JSON.stringify(error)); return []; }
-  // Map Supabase columns to app's expected shape
-  _rosterCache=(data||[]).map(r=>({
-    id: r.id,
-    name: r.name||'',
-    type: r.program||'tkd',
-    rank: r.rank||'',
-    age: r.age!=null?String(r.age):'',
-    beltSize: r.belt_size||'',
-    lastTested: r.last_tested_date||'',
-    email: r.email||'',
-    on_pace: r.on_pace||false
-  }));
+  _rosterCache=(data||[]).map(c=>{
+    const rawRank=String(c.rank||'');
+    const cub=isCrmCubRank(rawRank)||String(c.program||'').toLowerCase()==='cubs';
+    return {
+      id: c.id,
+      name: ((c.first_name||'')+' '+(c.last_name||'')).replace(/\s+/g,' ').trim(),
+      type: cub?'cubs':'tkd',
+      rank: crmRankToApp(rawRank),
+      age: c.dob?ageFromDob(c.dob):'',
+      beltSize: c.belt_size||'',
+      lastTested: c.rank_date||'',
+      email: c.email||'',
+      on_pace: c.on_pace||false
+    };
+  });
   return _rosterCache;
 }
 
 function getRoster(){
   // Sync fallback — returns cache or empty (async load happens on login)
   return _rosterCache||[];
-}
-
-async function saveRosterRow(student){
-  // Upsert a single student row
-  const row={
-    id: student.id&&typeof student.id==='string'&&student.id.length>10?student.id:undefined,
-    name: student.name||'',
-    program: student.type||'tkd',
-    rank: student.rank||'',
-    age: student.age?parseInt(student.age)||null:null,
-    belt_size: student.beltSize||null,
-    last_tested_date: student.lastTested||null,
-    email: student.email||null
-  };
-  if(!row.id) delete row.id;
-  const {data,error}=await sb.from('students').upsert(row).select().single();
-  if(error){ console.error('saveRosterRow error',error); return null; }
-  _rosterCache=null; // invalidate cache
-  return data;
-}
-
-async function deleteRosterRowById(id){
-  const {error}=await sb.from('students').delete().eq('id',id);
-  if(error) console.error('deleteRosterRow error',error);
-  _rosterCache=null;
-}
-
-function saveRoster(r){
-  // Sync shim — updates cache only; individual rows saved via saveRosterRow
-  _rosterCache=r;
 }
 
 /** Names on the most recently saved testing (History index 0), for roster row highlighting */
@@ -2356,66 +2310,29 @@ function renderRoster(){
   const tbody=document.getElementById('roster-tbody');
   if(!tbody) return;
   if(!filtered.length){
-    tbody.innerHTML=`<tr><td colspan="7" style="text-align:center;color:var(--gray-400);padding:24px;">${full.length?'No results.':'No students yet. Import from Spark or add manually.'}</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="7" style="text-align:center;color:var(--gray-400);padding:24px;">${full.length?'No results.':'No active students found in the CRM.'}</td></tr>`;
     document.getElementById('roster-count').textContent='';
     return;
   }
-  const rankOpts=RANK_ORDER.map(r=>`<option value="${r}">${r}</option>`).join('');
+  // Read-only rows: this list mirrors the CRM. Editing a person - name,
+  // rank, sizes - happens on their CRM profile, and shows here on refresh.
   const lastTestSet=getLastTestingNameSet();
   tbody.innerHTML=filtered.map(s=>{
-    const i=full.findIndex(r=>r.id===s.id);
-    const typeOpts=['tkd','cubs'].map(t=>`<option value="${t}" ${t===s.type?'selected':''}>${t.toUpperCase()}</option>`).join('');
-    const selectedRankOpts=RANK_ORDER.map(r=>`<option value="${r}" ${r===s.rank?'selected':''}>${r}</option>`).join('');
-    const isCubsType=(s.type||'tkd')==='cubs';
-    const sizeList=isCubsType?['S','L']:BELT_SIZES;
-    const beltSizeOpts=sizeList.map(sz=>`<option value="${sz}" ${sz===(s.beltSize||'')?'selected':''}>${sz}</option>`).join('');
     const up=(s.name||'').trim().toUpperCase();
     let rowCls='roster-row-red';
     if(currentTestingNames.has(up)) rowCls='roster-row-green';
     else if(lastTestSet.has(up)) rowCls='roster-row-yellow';
     return `<tr class="${rowCls}">
-      <td><input type="text" value="${escHtml(s.name)}" onchange="updateRosterField(${i},'name',this.value)" style="width:180px;"></td>
-      <td><select onchange="updateRosterField(${i},'type',this.value);renderRoster()">${typeOpts}</select></td>
-      <td><select onchange="updateRosterField(${i},'rank',this.value)"><option value="">—</option>${selectedRankOpts}</select></td>
-      <td><input type="text" value="${escHtml(s.age||'')}" onchange="updateRosterField(${i},'age',this.value)" style="width:50px;"></td>
-      <td><select onchange="updateRosterField(${i},'beltSize',this.value)"><option value="">—</option>${beltSizeOpts}</select></td>
-      <td><input type="date" value="${s.lastTested||''}" onchange="updateRosterField(${i},'lastTested',this.value)"></td>
-      <td><button class="btn-sm btn-danger" onclick="deleteRosterRow(${i})">✕</button></td>
+      <td>${escHtml(s.name)}</td>
+      <td>${escHtml((s.type||'tkd').toUpperCase())}</td>
+      <td>${escHtml(s.rank||'—')}</td>
+      <td>${escHtml(s.age||'')}</td>
+      <td>${escHtml(s.beltSize||'—')}</td>
+      <td>${escHtml(s.lastTested||'')}</td>
+      <td></td>
     </tr>`;
   }).join('');
-  document.getElementById('roster-count').textContent=`Showing ${filtered.length} of ${full.length} students`;
-}
-
-async function addRosterRow(){
-  const r=getRoster();
-  const newStudent={id:null,name:'',rank:'',type:'tkd',age:'',beltSize:'',lastTested:''};
-  const saved=await saveRosterRow(newStudent);
-  if(saved){
-    _rosterCache=null;
-    await getRosterAsync();
-  } else {
-    r.push({id:'temp-'+Date.now(),name:'',rank:'',type:'tkd',age:'',beltSize:'',lastTested:''});
-    saveRoster(r);
-  }
-  renderRoster();
-}
-
-async function updateRosterField(i,field,val){
-  const r=getRoster();
-  if(!r[i]) return;
-  r[i][field]=val;
-  saveRoster(r);
-  await saveRosterRow(r[i]);
-}
-
-async function deleteRosterRow(i){
-  const r=getRoster();
-  if(!r[i]) return;
-  const id=r[i].id;
-  r.splice(i,1);
-  saveRoster(r);
-  renderRoster();
-  if(id&&typeof id==='string'&&id.length>10) await deleteRosterRowById(id);
+  document.getElementById('roster-count').textContent=`Showing ${filtered.length} of ${full.length} students — edit people in the CRM`;
 }
 function exportRosterCSV(){
   const r=getRoster();
@@ -3445,14 +3362,15 @@ function toggleRosterImport(){
 }
 
 async function clearAllData(){
-  const pw=prompt('Enter password to clear ALL data (roster, history, everything):');
+  const pw=prompt('Enter password to clear all TESTING HISTORY (the CRM roster is never touched):');
   if(pw===null) return;
   if(pw!==getStoredPw()){ alert('Incorrect password.'); return; }
-  if(!confirm('This will permanently delete your entire roster and all testing history. This cannot be undone. Are you absolutely sure?')) return;
-  if(!confirm('Last chance — delete everything?')) return;
+  if(!confirm('This permanently deletes every saved testing session and its history. Students, ranks and profiles live in the CRM and are NOT affected. Continue?')) return;
+  if(!confirm('Last chance — delete all testing history?')) return;
+  // History only. The roster is the CRM contact list (read-only here), and
+  // nothing in this app is ever allowed to delete from contacts.
   await sb.from('testing_history').delete().neq('id','00000000-0000-0000-0000-000000000000');
   await sb.from('testing_sessions').delete().neq('id','00000000-0000-0000-0000-000000000000');
-  await sb.from('students').delete().neq('id','00000000-0000-0000-0000-000000000000');
   _rosterCache=null;
   _historyCache=null;
   groups=[];
@@ -3645,7 +3563,7 @@ function renderSparringTab(){
 
   if(!groups||!groups.length){
     if(noGroups){
-      noGroups.innerHTML='No testing groups loaded yet. Go to <strong>Generate Sheets</strong> tab, upload your Spark testing CSV, and come back here.';
+      noGroups.innerHTML='No testing groups loaded yet. Go to <strong>Generate Sheets</strong>, hit <strong>Load from CRM</strong>, and come back here.';
       noGroups.style.display='block';
     }
     if(area) area.innerHTML='';
@@ -4623,9 +4541,10 @@ async function toggleOnPace(name, value){
   const roster = getRoster();
   const s = roster.find(r=>r.name===name);
   if(!s) return;
-  s.on_pace = value;
-  saveRoster(roster);
-  await sb.from('students').update({on_pace: value}).eq('name', name);
+  s.on_pace = value;   // roster rows ARE the cache; mutating updates it
+  // contacts.on_pace, keyed by id - the one flag this app still owns.
+  const {error} = await sb.from('contacts').update({on_pace: value}).eq('id', s.id);
+  if(error) console.error('toggleOnPace', error);
   renderProgress();
 }
 
