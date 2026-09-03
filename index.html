@@ -2850,7 +2850,7 @@ body { background: white; }
 .testing-line { font-family: 'EB Garamond',serif; font-size: 0.88rem; color: #555; text-align: center; letter-spacing: 0.04em; }
 .sig-row { width: 100%; display: flex; justify-content: space-between; align-items: flex-end; }
 @media print {
-  @page { size: 11in 8.5in landscape; margin: 0; }
+  @page { size: 11in 8.5in; margin: 0; }   /* NOT "landscape" too: lengths plus an orientation keyword is malformed and the whole rule gets dropped */
   body { background: white !important; padding: 0; }
   .cert-page { width: 11in; height: 8.5in; }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -2886,7 +2886,10 @@ function openCertificatePrintTab(docTitle, bodyHtml){
     +'while(px>min&&el.scrollWidth>el.clientWidth+1){px-=0.5;el.style.fontSize=px+"px";}}'
     +'function all(){try{var n=document.querySelectorAll(".s-name,.rank-name");'
     +'for(var i=0;i<n.length;i++)fit(n[i]);}catch(e){}window.__certFit=true;}'
-    +'if(document.fonts&&document.fonts.ready){document.fonts.ready.then(all)["catch"](all);}else{setTimeout(all,300);}'
+    +'function imgsReady(){var m=document.images,i;for(i=0;i<m.length;i++){if(!m[i].complete)return false;}return true;}'
+    +'function waitImgs(cb,t){if(imgsReady()||t>5000){cb();return;}setTimeout(function(){waitImgs(cb,t+100);},100);}'
+    +'function go(){waitImgs(all,0);}'
+    +'if(document.fonts&&document.fonts.ready){document.fonts.ready.then(go)["catch"](go);}else{setTimeout(go,300);}'
     +'})();<\/script>';
   const full='<!DOCTYPE html><html><head><title>'+String(docTitle||'Print')+'</title>'+head+'</head><body>'+bodyHtml+fitScript+'</body></html>';
   try{
@@ -3137,7 +3140,7 @@ ${CERT_V45_FLAG_HTML}
     <div class="content">
       <div class="content-top">
         <div style="margin-top:0.02in;text-align:center;">
-          <img src="https://barestkd-cyber.github.io/curriculum/logo-headline.png" style="height:1.1in;max-width:5in;object-fit:contain;" alt="" onerror="this.style.display='none'">
+          <img src="https://barestkd-cyber.github.io/curriculum/logo-headline.png" style="width:4.76in;height:1.1in;object-fit:contain;" alt="" onerror="this.style.display='none'">
         </div>
         <div style="display:flex;align-items:center;gap:8px;width:5.2in;margin-top:0.05in;margin-bottom:0.18in;">
           <div style="flex:1;height:1.5px;background:${lineDot};" class="div-line"></div>
@@ -3313,7 +3316,7 @@ ${CERT_V45_FLAG_HTML}
     <div class="content">
       <div class="content-top">
         <div style="margin-top:0.02in;text-align:center;">
-          <img src="https://barestkd-cyber.github.io/curriculum/logo-headline.png" style="height:1.1in;max-width:5in;object-fit:contain;" alt="" onerror="this.style.display='none'">
+          <img src="https://barestkd-cyber.github.io/curriculum/logo-headline.png" style="width:4.76in;height:1.1in;object-fit:contain;" alt="" onerror="this.style.display='none'">
         </div>
         <div style="display:flex;align-items:center;gap:8px;width:5.2in;margin-top:0.05in;margin-bottom:0.18in;">
           <div style="flex:1;height:1.5px;background:${lineDot};" class="div-line"></div>
