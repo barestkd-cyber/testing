@@ -2838,11 +2838,12 @@ body { background: white; }
 .div-dot { width:6px; height:6px; border-radius:50%; background:#c0152a; flex-shrink:0; }
 .cert-title { font-family: 'Cinzel',serif; font-size: 2.85rem; font-weight: 900; letter-spacing: 0.06em; color: #1a1a2e; text-align: center; line-height: 1; }
 .cert-body { font-family: 'EB Garamond',serif; font-style: italic; font-size: 0.95rem; color: #333; text-align: center; line-height: 1.62; max-width: 5.4in; }
-.s-name { font-family: 'Cinzel',serif; font-size: 2.2rem; font-weight: 700; color: #1a1a2e; letter-spacing: 0.04em; text-align: center; }
+.s-name { font-family: 'Cinzel',serif; font-size: 2.2rem; font-weight: 700; color: #1a1a2e; letter-spacing: 0.04em; text-align: center; white-space: nowrap; }
 .rank-of { font-family: 'EB Garamond',serif; font-style: italic; font-size: 1.05rem; font-weight: 600; color: #444; text-align: center; width: 100%; display: block; }
 .rank-name {
   font-family: 'Cinzel',serif; font-size: 2.2rem; font-weight: 900;
   color: var(--bc,#c0152a); letter-spacing: 0.05em; text-align: center;
+  white-space: nowrap;
   -webkit-text-stroke: 0px;
   paint-order: stroke fill;
 }
@@ -2877,7 +2878,17 @@ function openCertificatePrintTab(docTitle, bodyHtml){
     return;
   }
   const head='<meta charset="UTF-8">'+certificateV45FontLink()+'<style>'+getCertificatePrintStyles()+'</style>';
-  const full='<!DOCTYPE html><html><head><title>'+String(docTitle||'Print')+'</title>'+head+'</head><body>'+bodyHtml+'</body></html>';
+  // Shrink any name or rank too long for its line, AFTER the web fonts have
+  // loaded - measuring in fallback serif gives the wrong answer. Sets
+  // __certFit when done so the opener knows it is safe to print.
+  const fitScript='<script>(function(){'
+    +'function fit(el){var px=parseFloat(getComputedStyle(el).fontSize),min=px*0.5;'
+    +'while(px>min&&el.scrollWidth>el.clientWidth+1){px-=0.5;el.style.fontSize=px+"px";}}'
+    +'function all(){try{var n=document.querySelectorAll(".s-name,.rank-name");'
+    +'for(var i=0;i<n.length;i++)fit(n[i]);}catch(e){}window.__certFit=true;}'
+    +'if(document.fonts&&document.fonts.ready){document.fonts.ready.then(all)["catch"](all);}else{setTimeout(all,300);}'
+    +'})();<\/script>';
+  const full='<!DOCTYPE html><html><head><title>'+String(docTitle||'Print')+'</title>'+head+'</head><body>'+bodyHtml+fitScript+'</body></html>';
   try{
     w.document.open();
     w.document.write(full);
@@ -2893,10 +2904,17 @@ function openCertificatePrintTab(docTitle, bodyHtml){
     printed=true;
     try{ w.focus(); w.print(); }catch(_){}
   };
-  const delay=450;
-  if(w.document.readyState==='complete') setTimeout(runPrint,delay);
-  else w.addEventListener('load',()=>setTimeout(runPrint,delay),{once:true});
-  setTimeout(runPrint,4000);
+  // Wait for the fonts to load and the fit pass to finish before printing.
+  // The old code printed on a flat 450ms timer, so whether Cinzel had
+  // arrived was a race - the same batch could print two different ways.
+  let waited=0;
+  const whenFitted=()=>{
+    if(printed||!w||w.closed) return;
+    if(w.__certFit || waited>6000){ runPrint(); return; }
+    waited+=100;
+    setTimeout(whenFitted,100);
+  };
+  setTimeout(whenFitted,150);
 }
 
 /** Sort certificate rows by new rank (belt order), then name — matches print order. */
