@@ -416,6 +416,7 @@ html{overflow-x:hidden;}
   <div class="topbar-nav-row">
     <button class="tab-btn active" onclick="switchTab('generate',this)">Generate Sheets</button>
     <button class="tab-btn" onclick="switchTab('roster',this)">Roster</button>
+    <button class="tab-btn" onclick="switchTab('promote',this)">Promote</button>
     <button class="tab-btn" onclick="switchTab('history',this)">History</button>
     <button class="tab-btn" onclick="switchTab('sparring',this)">Sparring Flow</button>
     <button class="tab-btn" onclick="switchTab('formsflow',this)">Forms Flow</button>
@@ -583,6 +584,43 @@ html{overflow-x:hidden;}
         No testing groups loaded yet. Go to <strong>Generate Sheets</strong>, hit <strong>Load from CRM</strong>, then return here.
       </div>
       <div id="boards-content" style="display:none;" class="boards-print-zone"></div>
+    </div>
+
+    <!-- PROMOTE TAB -->
+    <div class="tab-panel" id="tab-promote">
+      <div class="section-header">
+        <div class="section-title">Promote ranks</div>
+        <div class="section-subtitle">Everyone on the loaded testing. Both ranks are editable, so a wrong belt on file can be fixed here before it is used.</div>
+      </div>
+      <div id="promote-empty" class="alert alert-info">
+        No testing loaded. Go to <strong>Generate Sheets</strong>, hit <strong>Load from CRM</strong>, then come back.
+      </div>
+      <div id="promote-area" style="display:none;">
+        <div class="card">
+          <div class="btn-row" style="margin-bottom:12px;align-items:center;">
+            <button class="inline-btn secondary" onclick="promoteSetAll(true)">Select all</button>
+            <button class="inline-btn secondary" onclick="promoteSetAll(false)">Select none</button>
+            <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+              <label style="font-size:0.78rem;color:var(--gray-400);">Rank date</label>
+              <input type="date" id="promote-date" style="padding:7px 9px;background:#111;border:1px solid #333;border-radius:4px;color:#fff;">
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead><tr>
+                <th style="width:34px"></th><th>Student</th>
+                <th style="width:29%">Rank now</th><th style="width:29%">Promoting to</th>
+              </tr></thead>
+              <tbody id="promote-tbody"></tbody>
+            </table>
+          </div>
+          <div id="promote-alert" style="margin-top:12px;"></div>
+          <div class="btn-row" style="margin-top:14px;">
+            <button class="inline-btn gold" onclick="applyPromotions()" style="font-size:1rem;padding:12px 28px;">Apply promotions</button>
+          </div>
+          <div style="font-size:0.75rem;color:var(--gray-400);margin-top:10px;">Writes each student's new rank and rank date to the CRM. Every change is recorded, so it can be undone.</div>
+        </div>
+      </div>
     </div>
 
     <!-- HISTORY TAB -->
@@ -1080,6 +1118,7 @@ function switchTab(name,btn){
   if(name==='sparring') renderSparringTab();
   if(name==='formsflow') renderFormsFlowTab();
   if(name==='boards') renderBoardsTab();
+  if(name==='promote') renderPromote();
   if(name==='progress') renderProgress();
 }
 
@@ -1355,6 +1394,7 @@ async function loadTestingFromCRM(){
         const rawRank=(c&&c.rank)?c.rank:(r.rank||'');
         const cub=isCrmCubRank(rawRank)||r.program==='Cubs';
         students.push({
+          id: r.contact_id || null,   // needed to write a promotion back
           name,
           rank: crmRankToApp(rawRank),
           age: (c&&c.dob)?ageFromDob(c.dob):'',
@@ -1882,6 +1922,104 @@ function buildPage(rows, group, month, pageNum){
     <div class="jp-page-num">${pageNum}</div>
   `;
   return page;
+}
+
+// ── PROMOTE ───────────────────────────────────────────────────────────
+// Every student on the loaded testing, with the rank they hold and the rank
+// they are moving to. Both editable: the stored ranks are not fully trusted
+// yet, so a wrong belt gets corrected here rather than blocking the night.
+let PROMO = [];
+
+function renderPromote(){
+  const rows=[];
+  groups.forEach(function(g){
+    const isCubs = g.name && g.name.toLowerCase().includes('cub');
+    (g.students||[]).forEach(function(st){
+      if(!st.name) return;
+      rows.push({ id: st.id||null, name: st.name, isCubs: isCubs || st.type==='cubs',
+                  from: st.rank||'', to: getNextRank(st.rank, isCubs || st.type==='cubs') || '',
+                  on: true });
+    });
+  });
+  PROMO = rows;
+  const area=document.getElementById('promote-area');
+  const empty=document.getElementById('promote-empty');
+  if(!rows.length){ if(area) area.style.display='none'; if(empty) empty.style.display=''; return; }
+  if(area) area.style.display=''; if(empty) empty.style.display='none';
+  const d=document.getElementById('promote-date');
+  if(d && !d.value) d.value=(document.getElementById('test-date')||{}).value || new Date().toLocaleDateString('en-CA');
+  promoteDraw();
+}
+
+function promoteOpts(list, sel){
+  return '<option value="">—</option>'+list.map(function(r){
+    return '<option value="'+escHtml(r)+'"'+(r===sel?' selected':'')+'>'+escHtml(rankShort(r))+'</option>';
+  }).join('');
+}
+
+function promoteDraw(){
+  const tb=document.getElementById('promote-tbody'); if(!tb) return;
+  tb.innerHTML=PROMO.map(function(p,i){
+    const list=p.isCubs?CUBS_RANK_ORDER:RANK_ORDER;
+    const warn=!p.id?' <span style="color:var(--gold);font-size:0.72rem;">not linked</span>':'';
+    return '<tr'+(p.id?'':' style="opacity:.55"')+'>'
+      + '<td><input type="checkbox" '+(p.on&&p.id?'checked':'')+(p.id?'':' disabled')+' onchange="promoteToggle('+i+',this.checked)"></td>'
+      + '<td>'+escHtml(p.name)+warn+'</td>'
+      + '<td><select onchange="promoteSetFrom('+i+',this.value)">'+promoteOpts(list,p.from)+'</select></td>'
+      + '<td><select onchange="promoteSetTo('+i+',this.value)">'+promoteOpts(list,p.to)+'</select></td>'
+      + '</tr>';
+  }).join('');
+  const n=PROMO.filter(function(p){ return p.on && p.id && p.to && p.to!==p.from; }).length;
+  const unlinked=PROMO.filter(function(p){ return !p.id; }).length;
+  showAlert('promote-alert', n+' student'+(n===1?'':'s')+' will be promoted.'
+    + (unlinked?' <strong>'+unlinked+' not linked to a CRM profile and cannot be written</strong> - load from the CRM rather than a CSV to fix that.':''),
+    unlinked?'alert-warn':'alert-info');
+}
+
+function promoteToggle(i,v){ if(PROMO[i]) PROMO[i].on=v; promoteDraw(); }
+function promoteSetTo(i,v){ if(PROMO[i]) PROMO[i].to=v; promoteDraw(); }
+/* Correcting the rank they hold re-derives where they are going, which is
+   the point of being able to edit it. */
+function promoteSetFrom(i,v){
+  const p=PROMO[i]; if(!p) return;
+  p.from=v;
+  p.to=getNextRank(v, p.isCubs)||'';
+  promoteDraw();
+}
+function promoteSetAll(v){ PROMO.forEach(function(p){ if(p.id) p.on=v; }); promoteDraw(); }
+
+/* Writes the new rank and rank date, guarded on the rank we believe they
+   hold so a second press cannot advance anyone twice, and records every
+   change so it can be undone. */
+async function applyPromotions(){
+  const when=(document.getElementById('promote-date')||{}).value || new Date().toLocaleDateString('en-CA');
+  const doing=PROMO.filter(function(p){ return p.on && p.id && p.to && p.to!==p.from; });
+  const fixing=PROMO.filter(function(p){ return !p.on && p.id && p.from && p.from!==p.origFrom && p.origFrom; });
+  if(!doing.length && !fixing.length){ alert('Nothing selected to change.'); return; }
+  if(!confirm('Promote '+doing.length+' student'+(doing.length===1?'':'s')+'? This updates their rank in the CRM.')) return;
+  const who=(currentUser && currentUser.email) || 'testing app';
+  let done=0, skipped=[], failed=[];
+  for(const p of doing){
+    const to=p.isCubs?('Cub '+p.to):p.to;
+    const from=p.isCubs?('Cub '+p.from):p.from;
+    // .eq('rank', from) is the guard: if they no longer hold that rank,
+    // somebody already moved them and this must not fire again.
+    const r=await sb.from('contacts').update({ rank: to, rank_date: when })
+      .eq('id', p.id).eq('rank', from).select('id');
+    if(r.error){ failed.push(p.name+' ('+r.error.message+')'); continue; }
+    if(!r.data || !r.data.length){ skipped.push(p.name); continue; }
+    await sb.from('rank_promotions').insert({ student_id:p.id, rank_from:from, rank_to:to,
+      kind:'promote', testing_date:when, applied_by:who });
+    done++;
+  }
+  let msg=done+' promoted.';
+  if(skipped.length) msg+=' <strong>'+skipped.length+' skipped</strong> - already at a different rank: '+skipped.join(', ')+'.';
+  if(failed.length) msg+=' <strong>'+failed.length+' failed</strong>: '+failed.join('; ');
+  showAlert('promote-alert', msg, (skipped.length||failed.length)?'alert-warn':'alert-success');
+  _rosterCache=null; await getRosterAsync();
+  // Re-read so the screen shows what the database now says.
+  PROMO.forEach(function(p){ if(p.on && p.id && p.to){ p.from=p.to; p.to=getNextRank(p.to,p.isCubs)||''; p.on=false; } });
+  promoteDraw();
 }
 
 // ── HISTORY ──
