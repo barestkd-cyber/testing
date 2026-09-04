@@ -691,18 +691,46 @@ html{overflow-x:hidden;}
 <script>
 // ── RANK CONFIG ──
 const RANK_ORDER = [
+  // The canonical stored spelling, matching portal/shared/belts.js and the
+  // database. "Sr." is applied by shortRank() at display time only - this
+  // app writes ranks now, so its list has to be the real one.
   "White Belt",
-  "Yellow Belt","Sr. Yellow Belt","Orange Belt","Sr. Orange Belt",
-  "Green Belt","Sr. Green Belt","Purple Belt","Sr. Purple Belt",
-  "Blue Belt","Sr. Blue Belt",
-  "Brown Belt","Sr. Brown Belt","Red Belt","Sr. Red Belt",
-  "Probationary Black Belt","Recommended Black Belt",
-  "1st Degree Decided Black Belt","1st Degree Decided Black Belt Lvl 2.",
-  "1st Degree Senior Black Belt","1st Degree Senior Black Belt Lvl 2.",
-  "2nd Degree Black Belt","2nd Degree Black Belt Lvl 2.",
-  "2nd Degree Decided Black Belt","2nd Degree Decided Black Belt Lvl 2.",
-  "2nd Degree Senior Black Belt","2nd Degree Senior Black Belt Lvl 2."
+  "Yellow Belt",
+  "Senior Yellow Belt",
+  "Orange Belt",
+  "Senior Orange Belt",
+  "Green Belt",
+  "Senior Green Belt",
+  "Purple Belt",
+  "Senior Purple Belt",
+  "Blue Belt",
+  "Senior Blue Belt",
+  "Brown Belt",
+  "Senior Brown Belt",
+  "Red Belt",
+  "Senior Red Belt",
+  "Probationary Black Belt",
+  "Recommended Black Belt",
+  "1st Degree Decided Black Belt",
+  "1st Degree Decided Black Belt Lvl 2.",
+  "1st Degree Senior Black Belt",
+  "1st Degree Senior Black Belt Lvl 2.",
+  "2nd Degree Black Belt",
+  "2nd Degree Black Belt Lvl 2.",
+  "2nd Degree Decided Black Belt",
+  "2nd Degree Decided Black Belt Lvl 2.",
+  "2nd Degree Senior Black Belt",
+  "2nd Degree Senior Black Belt Lvl 2.",
+  "3rd Degree Black Belt",
+  "3rd Degree Decided Black Belt",
+  "3rd Degree Senior Black Belt",
+  "4th Degree Black Belt",
+  "4th Degree Senior Black Belt",
 ];
+
+/* Ranks are stored formally and shown to Race abbreviated. Never applied to
+   a value being written or matched (owner, 2026-09-04). */
+const rankShort = r => (typeof window !== "undefined" && window.shortRank ? window.shortRank(r) : String(r == null ? "" : r).replace(/Senior/g, "Sr."));
 
 const BELT_SIZES = ["000","00","0","1","2","3","4","5","6","7","8"];
 
@@ -1259,14 +1287,16 @@ const CRM_DEGREE_MAP={
   '2nd degree senior black belt level 2':'2nd Degree Senior Black Belt Lvl 2.'
 };
 function isCrmCubRank(raw){ return /\bcubs?\b/i.test(String(raw||'')); }
+/* The database and this app now spell ranks the same way, so nothing is
+   translated except stripping the Cub prefix, which this app carries as a
+   separate cubs flag rather than in the rank string. */
 function crmRankToApp(raw){
   const r=String(raw||'').trim();
   if(!r) return '';
   if(isCrmCubRank(r)) return normalizeRank(r.replace(/\bcubs?\s+/i,'').trim());
-  const deg=CRM_DEGREE_MAP[r.toLowerCase()];
-  if(deg) return deg;
-  return normalizeRank(r);
+  return r;
 }
+
 
 /** "2026-08-29" -> "Sat Aug 29", via Date.UTC so the day never shifts. */
 function crmPrettyDay(ymd){
@@ -1428,7 +1458,7 @@ function studentRow(s,gi,si,gid){
   const g=groups.find(g=>g.id===gid);
   const isCubsGroup=g&&g.name.toLowerCase().includes('cub');
   const rankList=isCubsGroup?CUBS_RANK_ORDER:RANK_ORDER;
-  const rankOpts=rankList.map(r=>`<option value="${r}" ${r===s.rank?'selected':''}>${r}</option>`).join('');
+  const rankOpts=rankList.map(r=>`<option value="${r}" ${r===s.rank?'selected':''}>${rankShort(r)}</option>`).join('');
   const groupOpts=groups.map(g=>`<option value="${g.id}" ${g.id===gid?'disabled selected':''}>${escHtml(g.name.substring(0,20))}</option>`).join('');
   return `<tr>
     <td><input type="text" value="${escHtml(s.name)}" onchange="updateStudent(${gid},${si},'name',this.value)"></td>
@@ -1828,7 +1858,7 @@ function buildPage(rows, group, month, pageNum){
         : `<td></td>`;
       tableRows+=`<tr>
         <td>${escHtml(s.name)}</td>
-        <td>${escHtml(s.rank+(s.age?' ('+s.age+')':''))}</td>
+        <td>${escHtml(rankShort(s.rank)+(s.age?' ('+s.age+')':''))}</td>
         <td></td><td></td><td></td>${boardCell}
       </tr>`;
     } else {
@@ -2166,7 +2196,7 @@ function buildStudentTable(students, historyId, gi, tableId){
       <td>${idx+1}</td>
       <td>${escHtml(s.name||'')}</td>
       <td>${escHtml(s.age||'')}</td>
-      <td style="white-space:nowrap;">${escHtml(normalizeRank(s.rank)||s.rank||'')}${(()=>{const isCubs=s.type==='cubs';const nr=getNextRank(s.rank,isCubs);return nr?' <span style="color:var(--gray-400)">→</span> <strong>'+escHtml(certificateV45RankLabel(nr))+'</strong>':'';})()}</td>
+      <td style="white-space:nowrap;">${escHtml(rankShort(normalizeRank(s.rank)||s.rank||''))}${(()=>{const isCubs=s.type==='cubs';const nr=getNextRank(s.rank,isCubs);return nr?' <span style="color:var(--gray-400)">→</span> <strong>'+escHtml(certificateV45RankLabel(nr))+'</strong>':'';})()}</td>
       <td style="font-weight:600;color:${beltSize?'var(--white)':'var(--gold)'};">${beltSize||'—'}</td>
       <td>${clickable
         ?`<span class="badge ${isPassed?'badge-matched':'badge-manual'}" style="cursor:pointer;padding:4px 12px;" onclick="toggleResult('${historyId}',${groupIdx},${studentIdx})">${isPassed?'Pass':'No Change'}</span>`
@@ -2325,7 +2355,7 @@ function renderRoster(){
     return `<tr class="${rowCls}">
       <td>${escHtml(s.name)}</td>
       <td>${escHtml((s.type||'tkd').toUpperCase())}</td>
-      <td>${escHtml(s.rank||'—')}</td>
+      <td>${escHtml(rankShort(s.rank)||'—')}</td>
       <td>${escHtml(s.age||'')}</td>
       <td>${escHtml(s.beltSize||'—')}</td>
       <td>${escHtml(s.lastTested||'')}</td>
@@ -2688,12 +2718,15 @@ const CERT_V45_BELT_COLORS = {
 };
 
 /** Map roster rank (e.g. Sr. Yellow Belt) to cert BELT_COLORS keys (Senior Yellow Belt). */
+/* Certificates print the rank exactly as stored - the formal spelling is
+   already what the database holds. The old version expanded a leading
+   "Sr. " because this app used to keep its own vocabulary; it no longer
+   does. formalRank stays as a safety net for any value typed by hand. */
 function toCertV45BeltColorKey(rank){
-  if(!rank) return '';
-  const r=String(rank).trim();
-  if(/^Sr\.\s/i.test(r)) return 'Senior '+r.slice(4).trim();
-  return r;
+  const r=String(rank||'').trim();
+  return window.formalRank ? window.formalRank(r) : r;
 }
+
 
 function certV45IsSenior(rank){
   return toCertV45BeltColorKey(rank).startsWith('Senior ');
@@ -2964,7 +2997,7 @@ function renderCertView(){
       <tr>
         <td style="width:36px;"><input type="checkbox" id="${prefix}_${i}" checked style="width:16px;height:16px;cursor:pointer;accent-color:var(--red);"></td>
         <td><label for="${prefix}_${i}" style="cursor:pointer;font-weight:600;">${escHtml(s.name)}</label></td>
-        <td style="color:var(--gray-400);font-size:0.82rem;">${escHtml(s.rank)}</td>
+        <td style="color:var(--gray-400);font-size:0.82rem;">${escHtml(rankShort(s.rank))}</td>
         <td style="color:var(--white);font-weight:600;">→ ${escHtml(certificateV45RankLabel(s.nextRank))}</td>
       </tr>`).join('');
 
