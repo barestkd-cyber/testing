@@ -2504,7 +2504,11 @@ function renderRoster(){
 }
 function exportRosterCSV(){
   const r=getRoster();
-  const lines=['Name,Type,Rank,Age,Last Tested',...r.map(s=>`"${s.name}","${s.type||''}","${s.rank}","${s.age||''}","${s.lastTested||''}"`)];
+  // A quote inside a value has to be doubled or the row falls apart from
+  // that character on. O'Brien was fine; a name with a " was not.
+  const csv = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const lines=['Name,Type,Rank,Age,Last Tested',
+    ...r.map(s=>[s.name,s.type||'',s.rank,s.age||'',s.lastTested||''].map(csv).join(','))];
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([lines.join('\n')],{type:'text/csv'}));
   a.download='barestkd-roster.csv';
@@ -4764,6 +4768,22 @@ function renderProgress(){
 
   // For now all students are "assigned" for admin — in real app filter by instructor
   const list = document.getElementById('progress-list');
+  // Delegated once, not re-bound per render. Reading dataset gives back the
+  // exact name as text - the browser never parses it as code, which is the
+  // whole point of moving it out of an inline handler.
+  if (list && !list.__progBound) {
+    list.__progBound = true;
+    list.addEventListener('click', function (ev) {
+      const pace = ev.target.closest('[data-prog-pace]');
+      if (pace) {
+        ev.stopPropagation();
+        toggleOnPace(pace.dataset.progPace, pace.dataset.progPaceTo === '1');
+        return;
+      }
+      const card = ev.target.closest('[data-prog-open]');
+      if (card) openProgSheet(card.dataset.progOpen);
+    });
+  }
   if(!list) return;
   if(!students.length){ list.innerHTML='<div style="color:#888;font-size:0.82rem;padding:12px 0;">No students found. Upload a roster first.</div>'; return; }
 
@@ -4784,10 +4804,10 @@ function renderProgress(){
     const eligible = !req || total>=req;
     const sc = getStripeCount(s.name, s.rank);
 
-    return `<div class="prog-card assigned" onclick="openProgSheet('${escHtml(s.name)}')">
+    return `<div class="prog-card assigned" data-prog-open="${escHtml(s.name)}">
       <div class="prog-avatar" style="background:${color}22;border:2px solid ${color}44;color:${color};">${init}</div>
       <div class="prog-info">
-        <div class="prog-name">${s.name}</div>
+        <div class="prog-name">${escHtml(s.name)}</div>
         <div class="prog-rank">${s.rank||'—'}${s.age?' · Age '+s.age:''}</div>
       </div>
       <div class="prog-meta">
@@ -4796,7 +4816,7 @@ function renderProgress(){
         ${sc.total ? `<div class="prog-stripes">${sc.earned}/${sc.total} stripes</div>` : ''}
         <div onclick="event.stopPropagation();" style="margin-top:4px;">
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.65rem;color:${s.on_pace?'#2ecc71':'var(--muted)'};font-weight:600;letter-spacing:1px;text-transform:uppercase;">
-            <div onclick="toggleOnPace('${escHtml(s.name)}', ${!s.on_pace})" style="width:28px;height:16px;border-radius:8px;background:${s.on_pace?'#2ecc71':'#333'};position:relative;cursor:pointer;transition:background 0.2s;flex-shrink:0;">
+            <div data-prog-pace="${escHtml(s.name)}" data-prog-pace-to="${s.on_pace ? '0' : '1'}" style="width:28px;height:16px;border-radius:8px;background:${s.on_pace?'#2ecc71':'#333'};position:relative;cursor:pointer;transition:background 0.2s;flex-shrink:0;">
               <div style="position:absolute;top:2px;left:${s.on_pace?'14px':'2px'};width:12px;height:12px;border-radius:50%;background:white;transition:left 0.2s;"></div>
             </div>
             On Pace
@@ -4879,7 +4899,17 @@ function openProgSheet(name){
     </div>`;
   }).join('');
 
-  document.getElementById('prog-sheet-body').innerHTML = `
+  // The sheet is a different container from the list, so it needs its own
+  // delegated listener - the save button lives here, not in progress-list.
+  const sheetBody = document.getElementById('prog-sheet-body');
+  if (sheetBody && !sheetBody.__progBound) {
+    sheetBody.__progBound = true;
+    sheetBody.addEventListener('click', function (ev) {
+      const btn = ev.target.closest('[data-prog-note]');
+      if (btn) saveProgNote(btn.dataset.progNote);
+    });
+  }
+  sheetBody.innerHTML = `
     <div style="padding:0 20px;margin-bottom:18px;">
       <div style="font-size:0.6rem;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:10px;display:flex;align-items:center;gap:8px;">Cycle Stripes<span style="flex:1;height:1px;background:#2a2a2a;display:inline-block;"></span></div>
       ${diagHtml}
@@ -4888,7 +4918,7 @@ function openProgSheet(name){
     <div style="padding:0 20px;">
       <div style="font-size:0.6rem;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:8px;display:flex;align-items:center;gap:8px;">Instructor Notes<span style="flex:1;height:1px;background:#2a2a2a;display:inline-block;"></span></div>
       <textarea class="prog-notes-area" id="prog-notes-${name.replace(/\s/g,'_')}" placeholder="Notes about this student's progress...">${pd.notes||''}</textarea>
-      <button class="prog-save-note" onclick="saveProgNote('${escHtml(name)}')">Save Note</button>
+      <button class="prog-save-note" data-prog-note="${escHtml(name)}">Save Note</button>
     </div>`;
 
   document.getElementById('prog-sheet-overlay').style.cssText='display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;align-items:flex-end;justify-content:center;';
