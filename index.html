@@ -913,15 +913,29 @@ async function doLogin(){
   err.style.display = 'none';
   const { user, error } = await BTKD.signIn({ email, password: pw });
   if(error){ err.style.display='block'; return; }
-  const {data:profile} = await sb.from('profiles').select('role').eq('id', user.id).single();
-  if(profile?.role === 'admin' || profile?.role === 'instructor'){
-    currentUser = user;
-    await enterApp();
-  } else {
-    err.textContent = 'You do not have access to this app.';
-    err.style.display = 'block';
-    await BTKD.signOut();
-  }
+  if (await isTestingStaff(user)) { currentUser = user; await enterApp(); }
+  else await refuseEntry('You do not have access to this app.');
+}
+
+// ONE gate for every way into Testing: signing in, a restored session
+// (including one handed over from the portal), and a password reset. Only
+// signing in used to check the role; the other two walked straight in
+// whatever the account was (audit A19). Same rule as before - admin or
+// instructor - so nobody's access widens.
+async function isTestingStaff(user) {
+  if (!user) return false;
+  const { data: profile } = await sb.from('profiles').select('role').eq('id', user.id).single();
+  return profile?.role === 'admin' || profile?.role === 'instructor';
+}
+
+async function refuseEntry(message) {
+  const err = document.getElementById('login-error');
+  err.textContent = message;
+  err.style.display = 'block';
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  await BTKD.signOut();
 }
 
 async function enterApp(){
@@ -1060,8 +1074,9 @@ async function initAuth(){
 
   const session = await BTKD.getSession();
   if(session?.user){
-    currentUser = session.user;
-    await enterApp();
+    // A restored session is checked exactly like a fresh sign-in.
+    if (await isTestingStaff(session.user)) { currentUser = session.user; await enterApp(); }
+    else await refuseEntry('You do not have access to this app.');
   } else {
     document.getElementById('loading-screen').style.display = 'none';
     document.getElementById('login-screen').style.display = 'flex';
@@ -1077,10 +1092,16 @@ async function submitNewPassword(){
   if(pw !== confirm){ err.textContent = 'Passwords do not match.'; err.style.display = 'block'; return; }
   const { user, error } = await BTKD.completePasswordReset(pw);
   if(error){ err.textContent = error; err.style.display = 'block'; return; }
-  alert('Password updated! You are now signed in.');
   document.getElementById('new-password-modal').style.display = 'none';
-  currentUser = user;
-  await enterApp();
+  // A password reset is a way in too, so it faces the same gate. The new
+  // password is kept either way - it is theirs to change.
+  if (await isTestingStaff(user)) {
+    alert('Password updated! You are now signed in.');
+    currentUser = user;
+    await enterApp();
+  } else {
+    await refuseEntry('Your password was updated, but this app is for instructors.');
+  }
 }
 
 window.addEventListener('load', () => initAuth());
