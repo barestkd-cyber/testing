@@ -4816,14 +4816,13 @@ function renderProgress(){
     'Sr. Brown Belt':'#6a3010','Red Belt':'#CC0000','Sr. Red Belt':'#8a0000',
   };
 
+  // Class counts, stripes and an eligibility verdict used to sit on each
+  // card. They read a store that is never loaded, so they were always zero
+  // and every student at a rank with a class minimum read as ineligible
+  // (audit A09). Only what this app really knows is shown now.
   list.innerHTML = students.map(s=>{
     const color = beltColorMap[s.rank]||'#888';
     const init = s.name.split(' ').slice(0,2).map(x=>x[0]).join('');
-    const req = getClassReq(s.rank);
-    const pd = getProgStudent(s.name);
-    const total = (pd.carried||0)+(pd.attended||0);
-    const eligible = !req || total>=req;
-    const sc = getStripeCount(s.name, s.rank);
 
     return `<div class="prog-card assigned" data-prog-open="${escHtml(s.name)}">
       <div class="prog-avatar" style="background:${color}22;border:2px solid ${color}44;color:${color};">${init}</div>
@@ -4832,9 +4831,6 @@ function renderProgress(){
         <div class="prog-rank">${s.rank||'—'}${s.age?' · Age '+s.age:''}</div>
       </div>
       <div class="prog-meta">
-        ${req ? `<div class="prog-eligible ${eligible?'yes':'no'}">${eligible?'✓ Eligible':'Not Eligible'}</div>` : ''}
-        ${req ? `<div class="prog-classes">${total}/${req} classes</div>` : '<div class="prog-classes">No min</div>'}
-        ${sc.total ? `<div class="prog-stripes">${sc.earned}/${sc.total} stripes</div>` : ''}
         <div onclick="event.stopPropagation();" style="margin-top:4px;">
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.65rem;color:${s.on_pace?'#2ecc71':'var(--muted)'};font-weight:600;letter-spacing:1px;text-transform:uppercase;">
             <div data-prog-pace="${escHtml(s.name)}" data-prog-pace-to="${s.on_pace ? '0' : '1'}" style="width:28px;height:16px;border-radius:8px;background:${s.on_pace?'#2ecc71':'#333'};position:relative;cursor:pointer;transition:background 0.2s;flex-shrink:0;">
@@ -4848,100 +4844,27 @@ function renderProgress(){
   }).join('');
 }
 
+// The detail sheet used to offer class counts, an eligibility verdict,
+// stripe logging and a notes box. None of it was ever saved: it lived in
+// progData, which is never loaded and is lost on reload, while the real
+// stripes and attendance live in the CRM. So a stripe "logged" here never
+// reached the student, and "Save Note" said "Note saved" and kept nothing
+// (audit A09). The sheet now shows what this app actually knows and says
+// where the rest is kept.
 function openProgSheet(name){
-  const roster = getRoster();
-  const s = roster.find(r=>r.name===name);
-  if(!s) return;
-  progCurrentStudent = name;
-
-  const beltColorMap = {'White Belt':'#888','Yellow Belt':'#FFD700','Sr. Yellow Belt':'#e8b820','Orange Belt':'#FF8C00','Sr. Orange Belt':'#e06010','Green Belt':'#228B22','Sr. Green Belt':'#1a6018','Purple Belt':'#800080','Sr. Purple Belt':'#5a0060','Blue Belt':'#1E90FF','Sr. Blue Belt':'#1a6fcc','Brown Belt':'#8B4513','Sr. Brown Belt':'#6a3010','Red Belt':'#CC0000','Sr. Red Belt':'#8a0000'};
-  const color = beltColorMap[s.rank]||'#888';
-  const init = s.name.split(' ').slice(0,2).map(x=>x[0]).join('');
-  const req = getClassReq(s.rank);
-  const pd = getProgStudent(name);
-  const total = (pd.carried||0)+(pd.attended||0);
-  const eligible = !req||total>=req;
-
-  document.getElementById('prog-sheet-header').innerHTML = `
-    <div style="display:flex;align-items:center;gap:14px;">
-      <div style="width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:Oswald,sans-serif;font-size:1rem;background:${color}22;border:2px solid ${color}44;color:${color};flex-shrink:0;">${init}</div>
-      <div>
-        <div style="font-family:Oswald,sans-serif;font-size:1.2rem;letter-spacing:2px;">${name}</div>
-        <div style="font-size:0.72rem;color:#888;">${s.rank||'—'}${s.age?' · Age '+s.age:''}</div>
-      </div>
-      <div style="margin-left:auto;text-align:right;">
-        ${req?`<div style="font-family:Oswald,sans-serif;font-size:1.6rem;color:var(--gold);line-height:1;">${total}</div><div style="font-size:0.6rem;color:#888;text-transform:uppercase;letter-spacing:1px;">of ${req} classes</div><div style="font-size:0.62rem;color:${eligible?'#2ecc71':'#e74c3c'};margin-top:2px;font-weight:700;">${eligible?'✓ Eligible':'Not Eligible'}</div>`:'<div style="font-size:0.72rem;color:#888;">No class min</div>'}
-      </div>
-    </div>
-    ${req?`<div style="margin-top:10px;background:#111;border-radius:4px;height:5px;overflow:hidden;"><div style="height:100%;background:${eligible?'#2ecc71':'var(--gold)'};width:${Math.min(100,Math.round(total/req*100))}%;transition:width 0.4s;"></div></div>`:''}
-    ${pd.carried>0?`<div style="margin-top:6px;font-size:0.68rem;color:#888;">${pd.attended} attended + ${pd.carried} carried from last cycle</div>`:''}`;
-
-  // Stripe diagram
-  const {left,right} = getProgStripes(s.rank);
-  const isSr = s.rank&&(s.rank.startsWith('Sr.')||s.rank.toLowerCase().includes('senior'));
-  const beltBg = isSr?`linear-gradient(to bottom,${color} 30%,#111 30%,#111 70%,${color} 70%)`:color;
-
-  let leftHtml='',rightHtml='';
-  left.forEach((stripe,i)=>{
-    if(i>0) leftHtml+=`<div style="width:3px;flex-shrink:0;background:${beltBg};height:100%"></div>`;
-    const earned=!!pd.stripes[stripe.id];
-    leftHtml+=`<div class="prog-belt-stripe" style="background:${stripe.color}" onclick="toggleProgStripePanel('${stripe.id}')" title="${stripe.label}"><div class="prog-stripe-check ${earned?'earned':'unearned'}">${earned?'✓':''}</div></div>`;
-  });
-  right.forEach((stripe,i)=>{
-    if(i>0) rightHtml+=`<div style="width:3px;flex-shrink:0;background:${beltBg};height:100%"></div>`;
-    const earned=!!pd.stripes[stripe.id];
-    rightHtml+=`<div class="prog-belt-stripe" style="background:${stripe.color}" onclick="toggleProgStripePanel('${stripe.id}')" title="${stripe.label}"><div class="prog-stripe-check ${earned?'earned':'unearned'}">${earned?'✓':''}</div></div>`;
-  });
-
-  const leftW=left.length*18+Math.max(0,left.length-1)*3+8;
-  const rightW=right.length*18+Math.max(0,right.length-1)*3+8;
-
-  const diagHtml=(left.length||right.length)?`
-    <div style="margin-bottom:4px;">
-      <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:2px;color:var(--gold);font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px;">Stripes <span style="font-size:0.58rem;color:#888;letter-spacing:0;text-transform:none;font-weight:400;">— tap to view or log</span><span style="flex:1;height:1px;background:#2a2a2a;display:inline-block;"></span></div>
-      <div class="prog-belt-diagram" style="border:1px solid rgba(255,255,255,0.08);">
-        <div style="width:${leftW}px;padding:0 4px;display:flex;align-items:stretch;flex-shrink:0;background:${beltBg}">${leftHtml}</div>
-        <div style="flex:1;background:${beltBg}"></div>
-        <div style="width:${rightW}px;padding:0 4px;display:flex;align-items:stretch;flex-shrink:0;background:${beltBg}">${rightHtml}</div>
-      </div>
-    </div>`:'<div style="color:#888;font-size:0.78rem;padding:8px 0;">No stripes for this rank.</div>';
-
-  const allStripes=[...left,...right];
-  const panelsHtml=allStripes.map(stripe=>{
-    const earned=!!pd.stripes[stripe.id];
-    const dateStr=pd.stripes[stripe.id]?.date||'';
-    return`<div class="prog-stripe-panel" id="progpanel-${stripe.id}">
-      <div style="font-size:0.82rem;font-weight:700;margin-bottom:5px;color:${stripe.color}">${stripe.label}</div>
-      <div style="font-size:0.74rem;color:#888;margin-bottom:10px;">${stripe.desc}</div>
-      <button class="prog-log-btn ${earned?'logged':''}" onclick="openProgLogModal('${stripe.id}','${escHtml(stripe.label)}')">
-        <div class="prog-log-circle ${earned?'earned':''}">${earned?'✓':''}</div>
-        <span>${earned?'✓ Earned '+dateStr+' — tap to edit':'Log this stripe for '+name.split(' ')[0]}</span>
-      </button>
-    </div>`;
-  }).join('');
-
-  // The sheet is a different container from the list, so it needs its own
-  // delegated listener - the save button lives here, not in progress-list.
-  const sheetBody = document.getElementById('prog-sheet-body');
-  if (sheetBody && !sheetBody.__progBound) {
-    sheetBody.__progBound = true;
-    sheetBody.addEventListener('click', function (ev) {
-      const btn = ev.target.closest('[data-prog-note]');
-      if (btn) saveProgNote(btn.dataset.progNote);
-    });
-  }
-  sheetBody.innerHTML = `
-    <div style="padding:0 20px;margin-bottom:18px;">
-      <div style="font-size:0.6rem;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:10px;display:flex;align-items:center;gap:8px;">Cycle Stripes<span style="flex:1;height:1px;background:#2a2a2a;display:inline-block;"></span></div>
-      ${diagHtml}
-      <div id="prog-panels">${panelsHtml}</div>
-    </div>
-    <div style="padding:0 20px;">
-      <div style="font-size:0.6rem;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:8px;display:flex;align-items:center;gap:8px;">Instructor Notes<span style="flex:1;height:1px;background:#2a2a2a;display:inline-block;"></span></div>
-      <textarea class="prog-notes-area" id="prog-notes-${name.replace(/\s/g,'_')}" placeholder="Notes about this student's progress...">${pd.notes||''}</textarea>
-      <button class="prog-save-note" data-prog-note="${escHtml(name)}">Save Note</button>
-    </div>`;
-
+  const s = getRoster().find(function(r){ return r.name === name; });
+  if (!s) return;
+  const first = String(s.name || '').split(' ')[0] || 'This student';
+  document.getElementById('prog-sheet-header').innerHTML =
+    '<div style="font-family:Oswald,sans-serif;font-size:1.25rem;letter-spacing:1px;">' + escHtml(s.name) + '</div>'
+    + '<div style="font-size:0.78rem;color:#888;margin-top:2px;">' + escHtml(s.rank || '\u2014') + (s.age ? ' \u00b7 Age ' + escHtml(String(s.age)) : '') + '</div>'
+    + '<div style="font-size:0.7rem;margin-top:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:' + (s.on_pace ? '#2ecc71' : '#888') + ';">'
+    + (s.on_pace ? 'On pace' : 'Not marked on pace') + '</div>';
+  document.getElementById('prog-sheet-body').innerHTML =
+    '<div style="font-size:0.84rem;line-height:1.55;color:#ccc;padding:4px 0 10px;">'
+    + 'Attendance, stripes and notes for ' + escHtml(first) + ' are kept on their profile in the CRM.'
+    + '<br><br><span style="color:#888;font-size:0.76rem;">This screen used to offer to log them, but nothing entered here was ever saved, so it no longer asks. On Pace is set from the list and is saved.</span>'
+    + '</div>';
   document.getElementById('prog-sheet-overlay').style.cssText='display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;align-items:flex-end;justify-content:center;';
 }
 
