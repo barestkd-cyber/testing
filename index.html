@@ -633,20 +633,6 @@ html{overflow-x:hidden;}
 <!-- Hidden print output -->
 <div id="print-output"></div>
 
-<!-- PW Modal -->
-<div class="modal-overlay" id="pw-modal">
-  <div class="modal">
-    <div class="modal-title">Change Password</div>
-    <div class="form-group" style="margin-bottom:12px;"><label>Current Password</label><input type="password" id="pw-current"></div>
-    <div class="form-group" style="margin-bottom:12px;"><label>New Password</label><input type="password" id="pw-new"></div>
-    <div class="form-group"><label>Confirm New Password</label><input type="password" id="pw-confirm"></div>
-    <div class="login-error" id="pw-modal-error"></div>
-    <div class="modal-actions">
-      <button class="btn-cancel" onclick="closePwModal()">Cancel</button>
-      <button class="btn-primary" onclick="doChangePw()">Save</button>
-    </div>
-  </div>
-</div>
 
 <script>
 // ── RANK CONFIG ──
@@ -786,10 +772,6 @@ const RANK_GROUPS = [
 const ROWS_PER_PAGE = 13;
 const BEARS_LOGO = "https://barestkd-cyber.github.io/curriculum/BaresTKDPatch.png";
 const IMAS_LOGO  = "https://barestkd-cyber.github.io/curriculum/IMAS-Patch.png";
-const DEFAULT_PW = "barestkd2024";
-// Password gate for destructive actions (delete testing, change result, clear all).
-// Uses a locally-changed password if one was set via Change Password, else the default.
-function getStoredPw(){ return localStorage.getItem('tkd_pw') || DEFAULT_PW; }
 
 // ── SUPABASE ──
 // Auth + the Supabase client come from the shared module (window.BTKD),
@@ -848,6 +830,21 @@ async function isTestingStaff(user) {
   if (!user) return false;
   const { data: profile } = await sb.from('profiles').select('role').eq('id', user.id).single();
   return profile?.role === 'admin' || profile?.role === 'instructor';
+}
+
+// Destructive actions - deleting a testing, flipping a result, clearing the
+// history - need the ADMIN role, read live from profiles. This replaced a
+// password typed at a prompt and compared against a string that shipped in
+// this public file: it kept nobody out, and once in git history it never
+// can. RLS lets any staff role delete these rows; the app is stricter on
+// purpose, because deleting a testing is the owner's call and should not be
+// one tap away from every instructor login. Nothing widened: the role is
+// server-side and a profile cannot promote itself.
+async function requireAdmin(what) {
+  const role = await BTKD.getMyRole({ refresh: true });
+  if (role === 'admin') return true;
+  alert('Only an admin can ' + what + '.');
+  return false;
 }
 
 async function refuseEntry(message) {
@@ -1030,24 +1027,6 @@ window.addEventListener('load', () => initAuth());
 async function doLogout(){
   await BTKD.signOut();
   location.reload();
-}
-function openChangePw(){ document.getElementById('pw-modal').classList.add('open'); }
-function closePwModal(){
-  document.getElementById('pw-modal').classList.remove('open');
-  ['pw-current','pw-new','pw-confirm'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('pw-modal-error').style.display='none';
-}
-function doChangePw(){
-  const cur=document.getElementById('pw-current').value;
-  const nw=document.getElementById('pw-new').value;
-  const cf=document.getElementById('pw-confirm').value;
-  const err=document.getElementById('pw-modal-error');
-  if(cur!==getStoredPw()){err.textContent='Current password incorrect';err.style.display='block';return;}
-  if(!nw){err.textContent='New password cannot be empty';err.style.display='block';return;}
-  if(nw!==cf){err.textContent='Passwords do not match';err.style.display='block';return;}
-  localStorage.setItem('tkd_pw',nw);
-  closePwModal();
-  alert('Password updated.');
 }
 
 // ── TABS ──
@@ -2307,9 +2286,7 @@ function closeHistoryDetail(){
   currentHistoryId=null;
 }
 async function deleteHistory(id){
-  const pw=prompt('Enter password to delete this testing record:');
-  if(pw===null) return;
-  if(pw!==getStoredPw()){ alert('Incorrect password.'); return; }
+  if(!(await requireAdmin('delete a testing record'))) return;
   if(!confirm('Delete this testing record? This cannot be undone.')) return;
 
   // Just the history rows. Since 2026-08-28 saving a testing no longer
@@ -2499,9 +2476,8 @@ function setupGroupDragDrop(){
 
 // ── HISTORY RESULT TOGGLE ──
 async function toggleResult(historyId, groupIdx, studentIdx){
-  const pw=prompt('Enter password to change result:');
-  if(pw===null) return;
-  if(pw!==getStoredPw()){ alert('Incorrect password.'); return; }
+  if(!(await requireAdmin('change a testing result'))) return;
+  if(!confirm('Change this result? It rewrites what the testing record says.')) return;
   const history=getHistory();
   const entry=history.find(h=>h.id===historyId);
   if(!entry||!entry.groups) return;
@@ -3500,9 +3476,7 @@ function toggleRosterImport(){
 }
 
 async function clearAllData(){
-  const pw=prompt('Enter password to clear all TESTING HISTORY (the CRM roster is never touched):');
-  if(pw===null) return;
-  if(pw!==getStoredPw()){ alert('Incorrect password.'); return; }
+  if(!(await requireAdmin('clear the testing history'))) return;
   if(!confirm('This permanently deletes every saved testing session and its history. Students, ranks and profiles live in the CRM and are NOT affected. Continue?')) return;
   if(!confirm('Last chance — delete all testing history?')) return;
   // History only. The roster is the CRM contact list (read-only here), and
