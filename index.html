@@ -164,8 +164,11 @@ html{overflow-x:hidden;}
 .jp-table th{font-family:Arial,sans-serif;font-size:0.65rem;font-weight:700;text-align:center;padding:4px;border:1.5px solid #000;text-transform:uppercase;background:white;}
 .jp-table th:first-child,.jp-table th:nth-child(2){text-align:left;padding-left:7px;}
 .jp-table td{border:1.5px solid #000;padding:0 3px;font-size:0.63rem;vertical-align:middle;height:30px;}
-.jp-table td.blank-row{background:#f0f0f0;border-left:none;border-right:none;}
-.jp-table td.blank-row-edge{border:1.5px solid #000;background:#f0f0f0;}
+/* The row between rank groups: white and half height, with the column lines, so a walk-in can be
+   written in (owner, 2026-11-14: "instead of grayed out, it should be white, and then half the size
+   in case I needed to write in a fill-in"). */
+.jp-table td.blank-row{background:#fff;height:15px;}
+.jp-table td.blank-row-edge{border:1.5px solid #000;background:#fff;height:15px;}
 .jp-table td:first-child{font-weight:700;padding-left:7px;}
 .jp-table td:nth-child(2){padding-left:7px;font-size:0.61rem;}
 .jp-page-num{position:absolute;bottom:7px;right:14px;font-family:Arial,sans-serif;font-size:1rem;font-weight:700;}
@@ -205,6 +208,7 @@ html{overflow-x:hidden;}
   .jp-table{table-layout:fixed!important;width:100%!important;}
   .jp-table th{font-size:6.8pt!important;padding:1.5pt 3pt!important;}
   .jp-table td{font-size:7.2pt!important;height:0.435in!important;padding:0 2.5pt!important;}
+  .jp-table td.blank-row,.jp-table td.blank-row-edge{height:0.2175in!important;}
   .jp-table td:nth-child(2){font-size:6.8pt!important;}
   .jp-page-num{font-size:10pt!important;bottom:6pt!important;right:12pt!important;}
 }
