@@ -1575,13 +1575,37 @@ function buildRowsWithSeparators(students){
   sorted.forEach(s=>{
     const rg=getRankGroup(s.rank);
     if(lastRankGroup!==-2 && rg!==lastRankGroup){
-      rows.push({type:'blank'});
+      // Two short white rows between rank groups: one to write a walk-in into, and still a gap
+      // (owner, 2026-11-14: "The blank rows should be two in between").
+      rows.push({type:'blank'},{type:'blank'});
     }
     rows.push({type:'student', student:s});
     lastRankGroup=rg;
   });
 
   return rows;
+}
+
+/** A group's judge-sheet rows split into pages. A separator row is half a student row tall, so it
+ *  counts as half; a page never starts or ends on separators; every page is padded to a full sheet
+ *  with empty rows. */
+function paginateSheetRows(rows){
+  const units=r=>r.type==='blank'?0.5:1;
+  const pages=[];
+  let cur=[], used=0;
+  const flush=()=>{
+    while(cur.length&&cur[cur.length-1].type==='blank'){ cur.pop(); used-=0.5; }
+    if(!cur.length) return;
+    while(used+1<=ROWS_PER_PAGE){ cur.push({type:'empty'}); used+=1; }
+    pages.push(cur); cur=[]; used=0;
+  };
+  (rows||[]).forEach(r=>{
+    if(used+units(r)>ROWS_PER_PAGE) flush();
+    if(r.type==='blank'&&!cur.length) return;
+    cur.push(r); used+=units(r);
+  });
+  flush();
+  return pages;
 }
 
 /** Students in the same order they appear on generated judges sheets (NAME column top→bottom, all pages in order). */
@@ -1782,23 +1806,7 @@ function generateAllSheets(){
     const rows=buildRowsWithSeparators(students);
 
     // Paginate rows — page numbers reset per group
-    let pageRows=[];
-    let groupPageNum=1;
-
-    function flushPage(){
-      if(!pageRows.length && groupPageNum===1) return;
-      // Pad to ROWS_PER_PAGE
-      while(pageRows.length<ROWS_PER_PAGE) pageRows.push({type:'empty'});
-      allPageEls.push(buildPage(pageRows, group, month, groupPageNum));
-      groupPageNum++;
-      pageRows=[];
-    }
-
-    rows.forEach(row=>{
-      pageRows.push(row);
-      if(pageRows.length>=ROWS_PER_PAGE) flushPage();
-    });
-    if(pageRows.length>0) flushPage();
+    paginateSheetRows(rows).forEach((pageRows,i)=>allPageEls.push(buildPage(pageRows, group, month, i+1)));
   });
 
   const totalPages=allPageEls.length;
@@ -2359,15 +2367,7 @@ function reprintHistory(){
     const students=(group.students||[]).filter(s=>s.name);
     if(!students.length) return;
     const rows=buildRowsWithSeparators(students);
-    let pageRows=[], groupPageNum=1;
-    function flush(){
-      if(!pageRows.length) return;
-      while(pageRows.length<ROWS_PER_PAGE) pageRows.push({type:'empty'});
-      printOutput.appendChild(buildPage(pageRows,group,month,groupPageNum));
-      groupPageNum++; pageRows=[];
-    }
-    rows.forEach(row=>{ pageRows.push(row); if(pageRows.length>=ROWS_PER_PAGE) flush(); });
-    if(pageRows.length) flush();
+    paginateSheetRows(rows).forEach((pageRows,i)=>printOutput.appendChild(buildPage(pageRows,group,month,i+1)));
   });
   setTimeout(()=>window.print(),300);
 }
