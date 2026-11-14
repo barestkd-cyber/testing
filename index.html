@@ -214,6 +214,42 @@ html{overflow-x:hidden;}
 }
 #print-output{display:none;}
 
+/* Flow tab (owner, 2026-11-14) */
+.flow-bar{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+.flow-lbl{font-family:Oswald,sans-serif;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gray-400);}
+.flow-select,.flow-input{background:#141414;color:#fff;border:1px solid #333;border-radius:6px;padding:8px 10px;font-size:0.9rem;min-width:260px;max-width:100%;}
+.flow-order{background:#141414;border:1px solid #333;border-radius:8px;padding:10px 14px;margin-bottom:14px;}
+.flow-order-title{font-family:Oswald,sans-serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gold);margin-bottom:4px;}
+.flow-order-row{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;padding:5px 0;border-top:1px solid #222;font-size:0.95rem;}
+.flow-order-title+.flow-order-row{border-top:none;}
+.flow-order-name{font-weight:700;}
+.flow-order-what{color:var(--gray-400);font-size:0.8rem;}
+.flow-order-note{color:#cbd5e1;font-size:0.8rem;}
+.flow-num{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--gold);color:#111;font-weight:700;font-size:0.78rem;flex-shrink:0;}
+.flow-seg{border:1px solid #2a2a2a;border-radius:8px;background:#1a1a1a;margin-bottom:14px;padding:12px 14px;}
+.flow-seg-head{display:flex;align-items:center;gap:10px;}
+.flow-title{flex:1;min-width:0;background:transparent;border:1px solid transparent;border-radius:4px;color:#fff;font-family:Oswald,sans-serif;font-size:1.05rem;font-weight:600;padding:4px 6px;}
+.flow-title:hover,.flow-title:focus{border-color:#333;outline:none;}
+.flow-seg-tools{display:flex;gap:6px;}
+.flow-btn{background:#222;border:1px solid #333;color:#ddd;border-radius:4px;padding:3px 9px;cursor:pointer;font-size:0.85rem;}
+.flow-btn:hover{border-color:var(--gold);}
+.flow-del{color:#f87171;border-color:#5c2a2a;}
+.flow-hint{font-size:0.75rem;color:var(--gray-400);margin-top:6px;}
+.flow-notes{display:block;width:100%;box-sizing:border-box;margin-top:8px;background:#141414;color:#e5e7eb;border:1px solid #2a2a2a;border-radius:6px;padding:7px 9px;font-size:0.85rem;resize:vertical;font-family:inherit;}
+.flow-seg-body{margin-top:10px;}
+.flow-seg-body:empty{display:none;}
+.flow-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.flow-chip{background:#222;border:1px solid #333;color:#ddd;border-radius:4px;padding:5px 9px;font-size:0.78rem;cursor:pointer;}
+.flow-chip-done{border-color:#2f6b3a;color:#86efac;}
+.flow-chip-on{background:var(--gold);color:#111;border-color:var(--gold);}
+.flow-tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+.flow-grps{margin-top:10px;display:flex;flex-direction:column;gap:6px;}
+.flow-grp{display:flex;align-items:baseline;gap:10px;background:#141414;border:1px solid #2a2a2a;border-radius:6px;padding:6px 10px;font-size:0.82rem;}
+.flow-grp-name{font-weight:700;color:var(--gold);white-space:nowrap;}
+.flow-grp-list{flex:1;}
+.flow-add{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:4px;}
+.flow-btn:focus-visible,.flow-chip:focus-visible,.flow-title:focus-visible{outline:2px solid var(--gold);outline-offset:1px;}
+
 /* Sparring tab preview */
 .sp-group{border:1px solid #2a2a2a;border-radius:8px;margin-bottom:16px;overflow:hidden;background:#1a1a1a;}
 .sp-group-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:14px 18px;background:#1f1f1f;border-bottom:1px solid #2a2a2a;}
@@ -393,8 +429,7 @@ html{overflow-x:hidden;}
     <button class="tab-btn" onclick="switchTab('roster',this)">Roster</button>
     <button class="tab-btn" onclick="switchTab('promote',this)">Promote</button>
     <button class="tab-btn" onclick="switchTab('history',this)">History</button>
-    <button class="tab-btn" onclick="switchTab('sparring',this)">Sparring Flow</button>
-    <button class="tab-btn" onclick="switchTab('formsflow',this)">Forms Flow</button>
+    <button class="tab-btn" onclick="switchTab('flow',this)">Flow</button>
     <button class="tab-btn" onclick="switchTab('boards',this)">Boards</button>
   </div>
 
@@ -524,28 +559,36 @@ html{overflow-x:hidden;}
            the CRM and appear here on refresh. -->
     </div>
 
-    <!-- SPARRING FLOW TAB -->
-    <div class="tab-panel" id="tab-sparring">
+    <!-- FLOW TAB (owner, 2026-11-14): one page that reads as the order of events for a session.
+         Forms and Sparring keep their own builders, which live inside their segments; any other
+         segment is a name and notes, with students assigned only when asked for. -->
+    <div class="tab-panel" id="tab-flow">
       <div class="section-header">
-        <div class="section-title">Sparring Rounds</div>
-        <div class="section-subtitle">Manual round builder — click fighters, add 1v1 (2 selected) or 2v1 (3 selected: solo first), then Set Round / Next Round</div>
+        <div class="section-title">Flow</div>
+        <div class="section-subtitle">The order of events for one session, top to bottom. Forms and Sparring build groups and rounds as before. Add any other segment with notes; assign students only when it needs them.</div>
       </div>
-      <div id="sparring-no-groups" class="alert alert-info">
+      <div id="flow-no-groups" class="alert alert-info">
         No testing groups loaded yet. Go to <strong>Generate Sheets</strong>, hit <strong>Load from CRM</strong>, and come back here.
       </div>
-      <div id="sparring-groups-area"></div>
-    </div>
-
-    <!-- FORMS FLOW TAB -->
-    <div class="tab-panel" id="tab-formsflow">
-      <div class="section-header">
-        <div class="section-title">Forms Flow</div>
-        <div class="section-subtitle">Manual forms groups by rank — select names, add to a group, then Set Group / Next Group (same testing groups as Sparring)</div>
+      <div id="flow-main" style="display:none;">
+        <div class="flow-bar">
+          <label class="flow-lbl" for="flow-session">Session</label>
+          <select id="flow-session" class="flow-select" onchange="flowPickSession(this.value)"></select>
+        </div>
+        <div id="flow-order" class="flow-order"></div>
+        <div id="flow-segments"></div>
+        <div class="flow-add">
+          <input id="flow-new-name" class="flow-input" placeholder="New segment, e.g. Self-Defense" onkeydown="if(event.key==='Enter')flowAddSegment()">
+          <button type="button" class="inline-btn gold" onclick="flowAddSegment()">+ Add segment</button>
+        </div>
       </div>
-      <div id="formsflow-no-groups" class="alert alert-info">
-        No testing groups loaded yet. Go to <strong>Generate Sheets</strong>, hit <strong>Load from CRM</strong>, then return here.
+      <!-- The Forms and Sparring builders, parked here and moved into their segments when drawn. -->
+      <div id="flow-parking" style="display:none;">
+        <div id="sparring-no-groups" class="alert alert-info"></div>
+        <div id="sparring-groups-area"></div>
+        <div id="formsflow-no-groups" class="alert alert-info"></div>
+        <div id="formsflow-groups-area"></div>
       </div>
-      <div id="formsflow-groups-area"></div>
     </div>
 
     <!-- BOARDS TAB -->
@@ -908,6 +951,7 @@ function _buildDraft(){
     groups: groups,
     sp: _serializeGroupStates(spGroupState),
     ff: _serializeGroupStates(ffGroupState),
+    flow: flowSerialize(),
     title: document.getElementById('test-month')?.value || '',
     testDate: document.getElementById('test-date')?.value || '',
     savedAt: Date.now()
@@ -962,6 +1006,7 @@ async function restoreDraft(){
   groups = d.groups;
   spGroupState = d.sp || {};
   ffGroupState = d.ff || {};
+  flowState = flowRestore(d.flow);
   currentTestingNames = new Set();
   groups.forEach(g=>(g.students||[]).forEach(s=>{ if(s.name) currentTestingNames.add((s.name||'').trim().toUpperCase()); }));
   const mEl = document.getElementById('test-month'); if(mEl && d.title) mEl.value = d.title;
@@ -1041,8 +1086,7 @@ function switchTab(name,btn){
   if(btn) btn.classList.add('active');
   if(name==='roster') renderRoster();
   if(name==='history') refreshHistory();
-  if(name==='sparring') renderSparringTab();
-  if(name==='formsflow') renderFormsFlowTab();
+  if(name==='flow') renderFlowTab();
   if(name==='boards') renderBoardsTab();
   if(name==='promote') renderPromote();
 }
@@ -3493,6 +3537,7 @@ async function clearAllData(){
   currentTestingNames=new Set();
   spGroupState={};
   ffGroupState={};
+  flowState={session:null,sessions:{}};
   clearDraft();
   alert('All data cleared.');
   renderRoster();
@@ -3578,6 +3623,216 @@ let spGroupState={};
 let ffGroupState={};
 let ffScrollYByGid={};
 let _spRoundDragPayload=null;
+
+// ── FLOW (owner, 2026-11-14) ──
+// "make a flow page instead of forms and sparring, and I should be able to add other segments.
+// That way I can just read testing order of events off the flow page." Then: "Segments can have
+// notes, or button to assign students but not by default. For example self defense needs to be
+// done by everyone no need to fill it all out."
+// One session at a time. Each session keeps its own ordered segments, keyed by its name and day so
+// they survive a reload from the CRM. Forms and Sparring are segments whose bodies are the existing
+// builders (moved in, never copied, so their clicks and saved state work exactly as before).
+let flowState={session:null,sessions:{}};
+const flowSel={};   // segment id -> Set of picked student positions; never saved
+
+function flowKey(g){ return String((g&&g.name)||'')+'|'+String((g&&g.datetime)||''); }
+function flowNewId(){ return 's'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+
+function flowSerialize(){
+  const out={session:flowState.session,sessions:{}};
+  Object.keys(flowState.sessions||{}).forEach(k=>{
+    out.sessions[k]={segs:(flowState.sessions[k].segs||[]).map(s=>({id:s.id,type:s.type,title:s.title,
+      notes:s.notes||'',assign:!!s.assign,groups:(s.groups||[]).map(g=>g.slice())}))};
+  });
+  return out;
+}
+function flowRestore(d){
+  const st={session:null,sessions:{}};
+  if(!d||typeof d!=='object') return st;
+  st.session=d.session||null;
+  Object.keys(d.sessions||{}).forEach(k=>{
+    const segs=Array.isArray(d.sessions[k]&&d.sessions[k].segs)?d.sessions[k].segs:[];
+    st.sessions[k]={segs:segs.filter(s=>s&&s.id).map(s=>({id:String(s.id),
+      type:(s.type==='forms'||s.type==='sparring')?s.type:'custom',title:String(s.title||''),
+      notes:String(s.notes||''),assign:!!s.assign,
+      groups:Array.isArray(s.groups)?s.groups.map(g=>Array.isArray(g)?g.map(String):[]):[]}))};
+  });
+  return st;
+}
+
+/** Today's TKD session first, then anything today, then the first TKD session, then the first. */
+function flowDefaultGroup(){
+  if(!Array.isArray(groups)||!groups.length) return null;
+  const today=crmPrettyDay(new Date().toLocaleDateString('en-CA'));
+  const isToday=g=>String(g.datetime||'').startsWith(today);
+  return groups.find(g=>isToday(g)&&!isSparringExcludedGroup(g))||groups.find(isToday)
+    ||groups.find(g=>!isSparringExcludedGroup(g))||groups[0];
+}
+function flowGroup(){
+  if(!Array.isArray(groups)||!groups.length) return null;
+  let g=groups.find(x=>flowKey(x)===flowState.session);
+  if(!g){ g=flowDefaultGroup(); flowState.session=flowKey(g); }
+  return g;
+}
+/** The Forms and Sparring builders draw only the session the Flow page is on. */
+function flowOnly(list){
+  const g=flowGroup();
+  return g?(list||[]).filter(x=>x===g):(list||[]);
+}
+function flowSegs(g){
+  const k=flowKey(g);
+  if(!flowState.sessions[k]){
+    const segs=[{id:flowNewId(),type:'forms',title:'Forms',notes:''}];
+    if(!isSparringExcludedGroup(g)) segs.push({id:flowNewId(),type:'sparring',title:'Sparring',notes:''});
+    flowState.sessions[k]={segs};
+  }
+  return flowState.sessions[k].segs;
+}
+function flowFindSeg(id){
+  const g=flowGroup();
+  return g?(flowSegs(g).find(s=>s.id===id)||null):null;
+}
+function flowStudents(g){ return getStudentsInSheetOrder(g).filter(s=>s.name); }
+
+/** Put the Forms and Sparring builders back in their holder before the segments are redrawn. */
+function flowPark(){
+  const park=document.getElementById('flow-parking');
+  ['sparring-no-groups','sparring-groups-area','formsflow-no-groups','formsflow-groups-area'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el&&park&&el.parentNode!==park) park.appendChild(el);
+  });
+}
+
+function renderFlowTab(){
+  const none=document.getElementById('flow-no-groups'), main=document.getElementById('flow-main');
+  flowPark();
+  if(!Array.isArray(groups)||!groups.length){
+    if(none) none.style.display='block';
+    if(main) main.style.display='none';
+    return;
+  }
+  if(none) none.style.display='none';
+  if(main) main.style.display='block';
+  const g=flowGroup();
+  const sel=document.getElementById('flow-session');
+  sel.innerHTML=groups.map(x=>`<option value="${escAttr(flowKey(x))}"${x===g?' selected':''}>${escHtml((x.datetime?x.datetime+' · ':'')+(x.name||'Session'))}</option>`).join('');
+  const segs=flowSegs(g);
+  document.getElementById('flow-segments').innerHTML=segs.map((s,i)=>flowSegHtml(g,s,i,segs.length)).join('');
+  segs.forEach(s=>{
+    const body=document.getElementById('flow-body-'+s.id);
+    if(!body) return;
+    const ids=s.type==='forms'?['formsflow-no-groups','formsflow-groups-area']
+      :s.type==='sparring'?['sparring-no-groups','sparring-groups-area']:[];
+    ids.forEach(id=>{ const el=document.getElementById(id); if(el) body.appendChild(el); });
+  });
+  if(segs.some(s=>s.type==='forms')) renderFormsFlowTab();
+  if(segs.some(s=>s.type==='sparring')) renderSparringTab();
+  flowRefreshOrder();
+}
+
+function flowSegHtml(g,s,i,n){
+  const up=i>0?`<button type="button" class="flow-btn" title="Move up" onclick="flowMove('${s.id}',-1)">↑</button>`:'';
+  const dn=i<n-1?`<button type="button" class="flow-btn" title="Move down" onclick="flowMove('${s.id}',1)">↓</button>`:'';
+  const del=s.type==='custom'?`<button type="button" class="flow-btn flow-del" title="Remove segment" onclick="flowRemove('${s.id}')">✕</button>`:'';
+  const hint=s.type==='forms'?'Select names, then Set Group.'
+    :s.type==='sparring'?'Click fighters, add 1v1 (2 selected) or 2v1 (3 selected, solo first), then Set Round.':'';
+  const body=s.type!=='custom'?''
+    :s.assign?flowAssignHtml(g,s)
+    :`<button type="button" class="inline-btn secondary" onclick="flowAssignOn('${s.id}')">Assign students</button>`;
+  return `<div class="flow-seg" id="flow-seg-${s.id}">
+    <div class="flow-seg-head">
+      <span class="flow-num">${i+1}</span>
+      <input class="flow-title" value="${escAttr(s.title)}" aria-label="Segment name" onchange="flowRename('${s.id}',this.value)">
+      <div class="flow-seg-tools">${up}${dn}${del}</div>
+    </div>
+    ${hint?`<div class="flow-hint">${hint}</div>`:''}
+    <textarea class="flow-notes" rows="2" placeholder="Notes" aria-label="Notes for ${escAttr(s.title)}" oninput="flowSetNotes('${s.id}',this.value)">${escHtml(s.notes||'')}</textarea>
+    <div class="flow-seg-body" id="flow-body-${s.id}">${body}</div>
+  </div>`;
+}
+
+function flowAssignHtml(g,s){
+  const studs=flowStudents(g);
+  const sel=flowSel[s.id]||(flowSel[s.id]=new Set());
+  const placed=new Set((s.groups||[]).flat());
+  const chips=studs.map((st,idx)=>`<button type="button" class="flow-chip${sel.has(idx)?' flow-chip-on':''}${placed.has(st.name)?' flow-chip-done':''}" onclick="flowPick('${s.id}',${idx})">${escHtml(spFullName(st.name))}</button>`).join('');
+  const grps=(s.groups||[]).map((grp,gi)=>`<div class="flow-grp"><span class="flow-grp-name">Group ${gi+1}</span><span class="flow-grp-list">${grp.map(nm=>escHtml(spFullName(nm))).join(', ')}</span><button type="button" class="flow-btn flow-del" title="Remove group" onclick="flowDropGroup('${s.id}',${gi})">✕</button></div>`).join('');
+  return `<div class="flow-chips">${chips}</div>
+    <div class="flow-tools">
+      <button type="button" class="inline-btn gold" onclick="flowSetGroup('${s.id}')">Set Group</button>
+      <button type="button" class="inline-btn secondary" onclick="flowClearPick('${s.id}')">Clear selection</button>
+      <button type="button" class="inline-btn secondary" onclick="flowAssignOff('${s.id}')">Hide students</button>
+    </div>
+    ${grps?`<div class="flow-grps">${grps}</div>`:''}`;
+}
+function flowRedrawBody(id){
+  const g=flowGroup(), s=flowFindSeg(id), body=document.getElementById('flow-body-'+id);
+  if(g&&s&&body&&s.type==='custom') body.innerHTML=s.assign?flowAssignHtml(g,s):'';
+  flowRefreshOrder();
+}
+
+/** The order of events at a glance, at the top of the page. */
+function flowRefreshOrder(){
+  const box=document.getElementById('flow-order');
+  if(!box) return;
+  const g=flowGroup();
+  if(!g){ box.innerHTML=''; return; }
+  const plural=(n,w)=>n+' '+w+(n===1?'':'s');
+  box.innerHTML='<div class="flow-order-title">Order of events</div>'+flowSegs(g).map((s,i)=>{
+    let what='';
+    if(s.type==='forms'){ const n=(ffEnsureState(g.id).finalized||[]).length; what=n?plural(n,'group'):'no groups yet'; }
+    else if(s.type==='sparring'){ const n=(spEnsureState(g.id).finalizedRounds||[]).length; what=n?plural(n,'round'):'no rounds yet'; }
+    else if(s.assign&&(s.groups||[]).length) what=plural(s.groups.length,'group');
+    const note=String(s.notes||'').trim().split('\n')[0];
+    return `<div class="flow-order-row"><span class="flow-num">${i+1}</span><span class="flow-order-name">${escHtml(s.title||'Untitled')}</span>${what?`<span class="flow-order-what">${escHtml(what)}</span>`:''}${note?`<span class="flow-order-note">${escHtml(note)}</span>`:''}</div>`;
+  }).join('');
+}
+
+function flowPickSession(key){ flowState.session=key; saveDraft(); renderFlowTab(); }
+function flowRename(id,v){
+  const s=flowFindSeg(id); if(!s) return;
+  const t=String(v||'').trim(); if(t) s.title=t;
+  saveDraft(); flowRefreshOrder();
+}
+// Notes save with the regular autosave a few seconds later, not on every keystroke.
+function flowSetNotes(id,v){ const s=flowFindSeg(id); if(!s) return; s.notes=String(v||''); flowRefreshOrder(); }
+function flowMove(id,dir){
+  const g=flowGroup(); if(!g) return;
+  const segs=flowSegs(g), i=segs.findIndex(s=>s.id===id), j=i+dir;
+  if(i<0||j<0||j>=segs.length) return;
+  [segs[i],segs[j]]=[segs[j],segs[i]];
+  saveDraft(); renderFlowTab();
+}
+function flowRemove(id){
+  const g=flowGroup(); if(!g) return;
+  const segs=flowSegs(g), i=segs.findIndex(s=>s.id===id);
+  if(i<0||segs[i].type!=='custom') return;
+  segs.splice(i,1); delete flowSel[id];
+  saveDraft(); renderFlowTab();
+}
+function flowAddSegment(){
+  const g=flowGroup(); if(!g) return;
+  const inp=document.getElementById('flow-new-name');
+  const name=String((inp&&inp.value)||'').trim();
+  if(!name){ if(inp) inp.focus(); return; }
+  flowSegs(g).push({id:flowNewId(),type:'custom',title:name,notes:'',assign:false,groups:[]});
+  if(inp) inp.value='';
+  saveDraft(); renderFlowTab();
+}
+function flowAssignOn(id){ const s=flowFindSeg(id); if(!s) return; s.assign=true; s.groups=s.groups||[]; saveDraft(); flowRedrawBody(id); }
+function flowAssignOff(id){ const s=flowFindSeg(id); if(!s) return; s.assign=false; delete flowSel[id]; saveDraft(); renderFlowTab(); }
+function flowPick(id,idx){ const sel=flowSel[id]||(flowSel[id]=new Set()); if(sel.has(idx)) sel.delete(idx); else sel.add(idx); flowRedrawBody(id); }
+function flowClearPick(id){ delete flowSel[id]; flowRedrawBody(id); }
+function flowSetGroup(id){
+  const g=flowGroup(), s=flowFindSeg(id); if(!g||!s) return;
+  const studs=flowStudents(g), sel=flowSel[id];
+  if(!sel||!sel.size) return;
+  const names=[...sel].sort((a,b)=>a-b).map(i=>studs[i]&&studs[i].name).filter(Boolean);
+  (s.groups=s.groups||[]).push(names);
+  delete flowSel[id];
+  saveDraft(); flowRedrawBody(id);
+}
+function flowDropGroup(id,gi){ const s=flowFindSeg(id); if(!s||!s.groups) return; s.groups.splice(gi,1); saveDraft(); flowRedrawBody(id); }
 
 function spEnsureState(gid){
   const k=String(gid);
@@ -3685,7 +3940,7 @@ function renderSparringTab(){
     if(area) area.innerHTML='';
     return;
   }
-  const spGroups=groups.filter(g=>!isSparringExcludedGroup(g));
+  const spGroups=flowOnly(groups).filter(g=>!isSparringExcludedGroup(g));
   if(!spGroups.length){
     if(noGroups){
       noGroups.innerHTML='All current testing groups are <strong>Cubs</strong>. Sparring Flow is for TKD groups only — use <strong>Forms Flow</strong> for Cubs.';
@@ -3701,6 +3956,7 @@ function renderSparringTab(){
   area.innerHTML=spGroups.map(g=>renderSpGroup(g)).join('');
   spEnsureSparringDnD();
   ensureFlowPickDelegates();
+  flowRefreshOrder();
 }
 
 function renderSpGroup(g){
@@ -4435,9 +4691,10 @@ function renderFormsFlowTab(){
   if(noEl) noEl.style.display='none';
   groups.forEach(g=>ffEnsureState(g.id));
   ffCaptureSelectorScroll();
-  area.innerHTML=groups.map(g=>renderFfGroupCard(g)).join('');
+  area.innerHTML=flowOnly(groups).map(g=>renderFfGroupCard(g)).join('');
   ffRestoreSelectorScroll();
   ensureFlowPickDelegates();
+  flowRefreshOrder();
 }
 
 function renderFfGroupCard(g){
