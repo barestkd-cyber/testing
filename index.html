@@ -189,7 +189,7 @@ html{overflow-x:hidden;}
     width:11in!important;
     height:8.5in!important;
     max-width:none!important;
-    padding:0.11in 0.34in 0.1in!important;
+    padding:0.15in 0.34in 0.3in!important; /* the printer can't reach the last 1/8" of the sheet (owner, 2026-11-17: "the bottom is barely cut off") */
     margin:0!important;
     page-break-after:always!important;
     page-break-inside:avoid!important;
@@ -202,7 +202,7 @@ html{overflow-x:hidden;}
   .jp-header-left{gap:4pt!important;}
   .jp-judge-left{font-size:7.5pt!important;font-weight:600!important;padding:0 3pt 0 0!important;max-width:0.95in!important;}
   .jp-logo{width:60pt!important;height:60pt!important;}
-  .jp-title{font-size:32pt!important;line-height:1!important;}
+  .jp-title{font-size:26pt!important;line-height:1!important;}
   .jp-month{font-size:20pt!important;line-height:1.05!important;}
   .jp-datetime{font-size:9pt!important;margin-top:1pt!important;}
   .jp-table{table-layout:fixed!important;width:100%!important;}
@@ -210,7 +210,7 @@ html{overflow-x:hidden;}
   .jp-table td{font-size:7.2pt!important;height:0.435in!important;padding:0 2.5pt!important;}
   .jp-table td.blank-row,.jp-table td.blank-row-edge{height:0.2175in!important;}
   .jp-table td:nth-child(2){font-size:6.8pt!important;}
-  .jp-page-num{font-size:10pt!important;bottom:6pt!important;right:12pt!important;}
+  .jp-page-num{font-size:10pt!important;bottom:0.13in!important;right:12pt!important;}
 }
 #print-output{display:none;}
 
@@ -782,7 +782,7 @@ function getNextRank(rank, isCubs){
 }
 
 function getBeltOrderGroup(rank){
-  if(SENIOR_BELTS.some(r=>r.toLowerCase()===rank.toLowerCase())) return 'Senior Belts';
+  if(SENIOR_BELTS.some(r=>rankKey(r)===rankKey(rank))) return 'Senior Belts';
   if(BLACK_BELTS.some(r=>r.toLowerCase()===rank.toLowerCase())) return 'Black Belts';
   if(SOLID_BELTS.some(r=>r.toLowerCase()===rank.toLowerCase())) return 'Solid Belts';
   // fallback by name
@@ -1529,8 +1529,12 @@ function rankIndex(rank){
   return i;
 }
 
+/** One spelling for comparing ranks. The CRM says "Senior Brown Belt"; some lists here still say
+ *  "Sr. Brown Belt" (owner, 2026-11-17: Brown and Sr. Brown printed in separate groups). */
+function rankKey(rank){ return String(rank||'').trim().toLowerCase().replace(/^senior\s+/,'sr. '); }
 function getRankGroup(rank){
-  return RANK_GROUPS.findIndex(grp=>grp.some(r=>r.toLowerCase()===rank.toLowerCase()));
+  const k=rankKey(rank);
+  return RANK_GROUPS.findIndex(grp=>grp.some(r=>rankKey(r)===k));
 }
 
 /** Numeric age for sorting; missing/invalid sorts last when using descending order. */
@@ -1664,8 +1668,8 @@ function getBoardSize(rank, age){
   const a = parseInt(age);
   if(!rank || isNaN(a)) return '';
 
-  const isBrownRed  = BROWN_RED_RANKS.some(r=>r.toLowerCase()===rank.toLowerCase());
-  const isBlackBelt = BLACK_BELT_RANKS.some(r=>r.toLowerCase()===rank.toLowerCase());
+  const isBrownRed  = BROWN_RED_RANKS.some(r=>rankKey(r)===rankKey(rank));
+  const isBlackBelt = BLACK_BELT_RANKS.some(r=>rankKey(r)===rankKey(rank));
 
   if(!isBrownRed && !isBlackBelt) return ''; // blank for green and below
 
@@ -4615,7 +4619,7 @@ function ffBeltCategory(rank){
   const r=(rank||'').trim();
   if(!r) return 'white';
   const rl=r.toLowerCase();
-  const mrank=(arr)=>arr.some(x=>x.toLowerCase()===rl);
+  const mrank=(arr)=>arr.some(x=>rankKey(x)===rankKey(r));
   const sr=r.replace(/^Senior\s+/i,'Sr. ');
   if(mrank(BLACK_BELTS)||mrank(BLACK_BELT_RANK_NAMES)) return 'black';
   if(mrank(BROWN_RED_RANKS)) return 'brownred';
