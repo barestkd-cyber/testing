@@ -638,6 +638,15 @@ html{overflow-x:hidden;}
           <div style="font-size:0.75rem;color:var(--gray-400);margin-top:10px;">Writes each student's new rank and rank date to the CRM. Every change is recorded, so it can be undone.</div>
         </div>
       </div>
+      <!-- What Apply saved, in place of the list (owner, 2026-11-19). -->
+      <div id="promote-done" style="display:none;">
+        <div class="card">
+          <div id="promote-done-body"></div>
+          <div class="btn-row" style="margin-top:14px;">
+            <button class="inline-btn secondary" onclick="promoteDoneClose()">Back to the list</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- HISTORY TAB -->
@@ -1925,6 +1934,8 @@ function renderPromote(){
   PROMO = rows;
   const area=document.getElementById('promote-area');
   const empty=document.getElementById('promote-empty');
+  const doneEl=document.getElementById('promote-done');
+  if(doneEl) doneEl.style.display='none';
   if(!rows.length){ if(area) area.style.display='none'; if(empty) empty.style.display=''; return; }
   if(area) area.style.display=''; if(empty) empty.style.display='none';
   const d=document.getElementById('promote-date');
@@ -1979,7 +1990,7 @@ async function applyPromotions(){
   if(!doing.length && !fixing.length){ alert('Nothing selected to change.'); return; }
   if(!confirm('Promote '+doing.length+' student'+(doing.length===1?'':'s')+'? This updates their rank in the CRM.')) return;
   const who=(currentUser && currentUser.email) || 'testing app';
-  let done=0, skipped=[], failed=[];
+  const moved=[], skipped=[], failed=[];
   for(const p of doing){
     const to=p.isCubs?('Cub '+p.to):p.to;
     const from=p.isCubs?('Cub '+p.from):p.from;
@@ -1991,16 +2002,43 @@ async function applyPromotions(){
     if(!r.data || !r.data.length){ skipped.push(p.name); continue; }
     await sb.from('rank_promotions').insert({ student_id:p.id, rank_from:from, rank_to:to,
       kind:'promote', testing_date:when, applied_by:who });
-    done++;
+    moved.push({ p: p, name: p.name, from: from, to: to });
   }
-  let msg=done+' promoted.';
-  if(skipped.length) msg+=' <strong>'+skipped.length+' skipped</strong> - already at a different rank: '+skipped.join(', ')+'.';
-  if(failed.length) msg+=' <strong>'+failed.length+' failed</strong>: '+failed.join('; ');
-  showAlert('promote-alert', msg, (skipped.length||failed.length)?'alert-warn':'alert-success');
   _rosterCache=null; await getRosterAsync();
-  // Re-read so the screen shows what the database now says.
-  PROMO.forEach(function(p){ if(p.on && p.id && p.to){ p.from=p.to; p.to=getNextRank(p.to,p.isCubs)||''; p.on=false; } });
+  // Re-read so the list shows what the database now says: only the students
+  // who actually moved go up a rank, and nobody is left checked.
+  moved.forEach(function(m){ m.p.from=m.p.to; m.p.to=getNextRank(m.p.to,m.p.isCubs)||''; });
+  PROMO.forEach(function(p){ p.on=false; });
   promoteDraw();
+  promoteShowDone(moved, skipped, failed, when);
+}
+
+/* Owner, 2026-11-19: "rank update went through but no toast or new screen".
+   The result line was written to promote-alert and promoteDraw() overwrote it
+   at once with "0 students will be promoted", and the list came back one rank
+   higher and unchecked, so a save looked like nothing. A second Select all and
+   Apply would then have moved everyone up again. The list steps aside for a
+   screen that says what was saved, to whom, until he goes back to it. */
+function promoteShowDone(moved, skipped, failed, when){
+  const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(when||''));
+  const day=m ? (+m[2])+'/'+(+m[3])+'/'+m[1] : String(when||'');
+  const rows=moved.map(function(x){
+    return '<tr><td>'+escHtml(x.name)+'</td><td>'+escHtml(rankShort(x.from))+'</td><td><strong>'+escHtml(rankShort(x.to))+'</strong></td></tr>';
+  }).join('');
+  let html='<div class="section-title" style="margin-bottom:4px;">'+(moved.length?'Promotions saved':'Nobody was promoted')+'</div>'
+    + '<div style="color:var(--gray-400);margin-bottom:14px;">'+moved.length+' student'+(moved.length===1?'':'s')
+    + ' moved up in the CRM'+(moved.length?', rank date '+escHtml(day):'')+'.</div>';
+  if(rows) html+='<div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>Student</th><th>From</th><th>To</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  if(skipped.length) html+='<div class="alert alert-warn" style="margin-top:12px;"><strong>'+skipped.length+' skipped</strong>, already at a different rank in the CRM: '+skipped.map(escHtml).join(', ')+'.</div>';
+  if(failed.length) html+='<div class="alert alert-warn" style="margin-top:12px;"><strong>'+failed.length+' failed</strong>: '+failed.map(escHtml).join('; ')+'</div>';
+  document.getElementById('promote-done-body').innerHTML=html;
+  document.getElementById('promote-area').style.display='none';
+  document.getElementById('promote-done').style.display='';
+  if(typeof window!=='undefined' && window.scrollTo) window.scrollTo(0,0);
+}
+function promoteDoneClose(){
+  document.getElementById('promote-done').style.display='none';
+  document.getElementById('promote-area').style.display='';
 }
 
 // ── HISTORY ──
